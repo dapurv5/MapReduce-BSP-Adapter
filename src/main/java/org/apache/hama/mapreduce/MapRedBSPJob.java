@@ -53,37 +53,37 @@ public class MapRedBSPJob {
   }
   
   public void setMapperClass(Class<? extends Mapper<?,?,?,?>> mapperClass){
-    job.getConf().set(MapRedBSPConstants.MAPPER_CLASS_NAME, mapperClass.getCanonicalName());
+    conf.set(MapRedBSPConstants.MAPPER_CLASS_NAME, mapperClass.getCanonicalName());
   }
   
   public void setReducerClass(Class<? extends Reducer<?,?,?,?>> reducerClass){
-    job.getConf().set(MapRedBSPConstants.REDUCER_CLASS_NAME, reducerClass.getCanonicalName());
+    conf.set(MapRedBSPConstants.REDUCER_CLASS_NAME, reducerClass.getCanonicalName());
   }
   
   public void setMapInputKeyClass(Class<? extends WritableComparable<?>> mapInKeyClass){
-    job.getConf().set(MapRedBSPConstants.MAP_IN_KEY_CLASS_NAME, mapInKeyClass.getCanonicalName());
+    conf.set(MapRedBSPConstants.MAP_IN_KEY_CLASS_NAME, mapInKeyClass.getCanonicalName());
   }
   
   public void setMapInputValueClass(Class<? extends WritableComparable<?>> mapInValClass){
-    job.getConf().set(MapRedBSPConstants.MAP_IN_VAL_CLASS_NAME, mapInValClass.getCanonicalName());
+    conf.set(MapRedBSPConstants.MAP_IN_VAL_CLASS_NAME, mapInValClass.getCanonicalName());
   }
   
   public void setMapOutputKeyClass(Class<? extends WritableComparable<?>> mapOutKeyClass){
-    job.getConf().set(MapRedBSPConstants.MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getCanonicalName());
+    conf.set(MapRedBSPConstants.MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getCanonicalName());
   }
   
   public void setMapOutputValueClass(Class<? extends Writable> mapOutValClass){
-    job.getConf().set(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getCanonicalName());
+    conf.set(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getCanonicalName());
   }
   
   
   public void setOutputKeyClass(Class<? extends WritableComparable<?>> outKeyClass){
-    job.getConf().set(MapRedBSPConstants.REDUCE_OUT_KEY_CLASS_NAME, outKeyClass.getCanonicalName());
+    conf.set(MapRedBSPConstants.REDUCE_OUT_KEY_CLASS_NAME, outKeyClass.getCanonicalName());
     job.setOutputKeyClass(outKeyClass);
   }
   
   public void setOutputValueClass(Class<? extends Writable> outValClass){
-    job.getConf().set(MapRedBSPConstants.REDUCE_OUT_VAL_CLASS_NAME, outValClass.getCanonicalName());
+    conf.set(MapRedBSPConstants.REDUCE_OUT_VAL_CLASS_NAME, outValClass.getCanonicalName());
     job.setOutputValueClass(outValClass);
   }
   
