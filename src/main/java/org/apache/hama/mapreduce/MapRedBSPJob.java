@@ -29,6 +29,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hama.HamaConfiguration;
 import org.apache.hama.bsp.BSPJob;
 import org.apache.hama.bsp.InputFormat;
@@ -97,5 +98,10 @@ public class MapRedBSPJob {
   
   public void setJobName(String name){
     job.setJobName(name);
+  }
+  
+  public void setPartitionerClass(Class<? extends 
+      Partitioner<WritableComparable<?>, Writable>> partitioner){
+    
   }
 }

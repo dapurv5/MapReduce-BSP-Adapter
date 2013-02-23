@@ -24,12 +24,21 @@ package org.apache.hama.mapreduce;
 
 import java.io.IOException;
 
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
+
 
 public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
   
   protected class Context{
+    private final MapRedBSP bsp;
+    
+    public Context(MapRedBSP bsp){
+      this.bsp = bsp;
+    }
+
     public void write(KEYOUT key, VALUEOUT value){
-      
+      bsp.reducerContextWrite((WritableComparable<?>)key, (Writable)value);
     }
   }
   
@@ -45,5 +54,4 @@ public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
       context.write((KEYOUT) key, (VALUEOUT) value);
     }
   }
-
 }

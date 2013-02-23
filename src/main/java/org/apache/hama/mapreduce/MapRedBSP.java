@@ -29,6 +29,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.directmemory.DirectMemory;
 import org.apache.directmemory.cache.CacheService;
+import org.apache.directmemory.memory.Pointer;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hama.bsp.BSP;
@@ -40,8 +41,9 @@ import org.apache.hama.util.ReflectionUtils;
 /**
  * BSP class to emulate a Map-Reduce process.
  */
-public class MapRedBSP extends
-BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>>{
+public class MapRedBSP 
+extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>>
+implements MapRedBSPConstants{
 
   private final static Log LOG = LogFactory.getLog(MapRedBSP.class);
 
@@ -53,24 +55,23 @@ BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableCo
   private Writable              mapOutVal;
   private WritableComparable<?> redOutKey;
   private Writable              redOutVal;
-  private CacheService<WritableComparable<?>, Writable>  cacheService;
 
   @SuppressWarnings("unchecked")
   public void setup(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer){
 
     String mapperClassName  = peer.getConfiguration().get(
-        MapRedBSPConstants.MAPPER_CLASS_NAME, Mapper.class.getCanonicalName());
+        MAPPER_CLASS_NAME, Mapper.class.getCanonicalName());
 
     String reducerClassName = peer.getConfiguration().get(
-        MapRedBSPConstants.REDUCER_CLASS_NAME, Reducer.class.getCanonicalName());
+        REDUCER_CLASS_NAME, Reducer.class.getCanonicalName());
 
-    String mapInKeyClassName  = peer.getConfiguration().get(MapRedBSPConstants.MAP_IN_KEY_CLASS_NAME);
-    String mapInValClassName  = peer.getConfiguration().get(MapRedBSPConstants.MAP_IN_VAL_CLASS_NAME);
-    String mapOutKeyClassName = peer.getConfiguration().get(MapRedBSPConstants.MAP_OUT_KEY_CLASS_NAME);
-    String mapOutValClassName = peer.getConfiguration().get(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME);
-    String redOutKeyClassName = peer.getConfiguration().get(MapRedBSPConstants.REDUCE_OUT_KEY_CLASS_NAME);
-    String redOutValClassName = peer.getConfiguration().get(MapRedBSPConstants.REDUCE_OUT_VAL_CLASS_NAME);
+    String mapInKeyClassName  = peer.getConfiguration().get(MAP_IN_KEY_CLASS_NAME);
+    String mapInValClassName  = peer.getConfiguration().get(MAP_IN_VAL_CLASS_NAME);
+    String mapOutKeyClassName = peer.getConfiguration().get(MAP_OUT_KEY_CLASS_NAME);
+    String mapOutValClassName = peer.getConfiguration().get(MAP_OUT_VAL_CLASS_NAME);
+    String redOutKeyClassName = peer.getConfiguration().get(REDUCE_OUT_KEY_CLASS_NAME);
+    String redOutValClassName = peer.getConfiguration().get(REDUCE_OUT_VAL_CLASS_NAME);
 
     try {
       mapInKey  = ReflectionUtils.newInstance(mapInKeyClassName);
@@ -84,13 +85,6 @@ BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableCo
       LOG.error(e1);
       throw new RuntimeException(e1);
     }
-
-    cacheService = new DirectMemory<WritableComparable<?>, Writable>().
-        setNumberOfBuffers(10).
-        setSize(1000).
-        setInitialCapacity(10000).
-        setConcurrencyLevel(4).
-        newCacheService();
 
     try {
       mapper  = (Mapper<WritableComparable<?>, Writable, WritableComparable<?>, Writable>)
@@ -117,9 +111,8 @@ BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableCo
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer)
           throws IOException, SyncException, InterruptedException {
     //SUPERSTEP-0
-    //[MAP AND COMBINE PHASE]
-    //    cache = cacheManager.createCache("cache_"+peer.getPeerName());
-    Mapper.Context mapperContext = mapper.new Context();
+    //[MAP PHASE]
+    Mapper.Context mapperContext = mapper.new Context(this);
 
     while(peer.readNext(mapInKey, mapInVal)){
       mapper.map(mapInKey, mapInVal, mapperContext);
@@ -130,5 +123,14 @@ BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableCo
   public void cleanup(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer){
     //    cacheManager.shutdown();
+  }
+  
+  protected void mapperContextWrite(WritableComparable<?> key, Writable val){
+    //get the paritioner
+    //peer.send to the appropriate peer.
+  }
+  
+  protected void reducerContextWrite(WritableComparable<?> key, Writable val){
+    //write to the disk.
   }
 }

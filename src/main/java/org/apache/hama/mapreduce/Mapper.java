@@ -24,21 +24,31 @@ package org.apache.hama.mapreduce;
 
 import java.io.IOException;
 
-public class Mapper<KEYIN, VALUEIN, KEYOUT, VALUEOUT>{
-  
-  protected class Context{    
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
+
+public class Mapper<KEYIN,VALUEIN,KEYOUT,VALUEOUT>{
+
+  protected class Context{
+    
+    private final MapRedBSP bsp;
+    
+    public Context(MapRedBSP bsp){
+      this.bsp = bsp;
+    }
+
     public void write(KEYOUT key, VALUEOUT value){
-      
+      bsp.mapperContextWrite((WritableComparable<?>)key, (Writable)value);
     }
   }
-  
+
   /**
    * Called once for each key/value pair in the input split. Most applications
    * should override this, but the default is the identity function.
    */
   @SuppressWarnings("unchecked")
   protected void map(KEYIN key, VALUEIN value, 
-                     Context context) throws IOException, InterruptedException {
+      Context context) throws IOException, InterruptedException {
     context.write((KEYOUT) key, (VALUEOUT) value);
   }
 

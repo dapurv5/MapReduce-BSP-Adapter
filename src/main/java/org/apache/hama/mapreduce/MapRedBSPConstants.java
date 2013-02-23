@@ -36,7 +36,5 @@ public interface MapRedBSPConstants {
   public static final String MAP_OUT_VAL_CLASS_NAME    = "hama.mapreduce.map.value.output.class";
   public static final String REDUCE_OUT_KEY_CLASS_NAME = "hama.mapreduce.reduce.key.output.class";
   public static final String REDUCE_OUT_VAL_CLASS_NAME = "hama.mapreduce.reduce.value.output.class";
-  
-  //Cache Constants
-  public static final int    CACHE_SIZE              = 1000;
+  public static final String PARTITIONER_CLASS_NAME    = "hama.mapreduce.partitioner.class";  
 }
