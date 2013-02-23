@@ -22,14 +22,14 @@
  */
 package org.apache.hama.mapreduce;
 
+import static org.apache.hama.mapreduce.MapRedBSPConstants.*;
+
 import java.io.IOException;
 
 import org.apache.hama.bsp.message.queue.SortedDiskQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.directmemory.DirectMemory;
-import org.apache.directmemory.cache.CacheService;
-import org.apache.directmemory.memory.Pointer;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hama.bsp.BSP;
@@ -42,8 +42,7 @@ import org.apache.hama.util.ReflectionUtils;
  * BSP class to emulate a Map-Reduce process.
  */
 public class MapRedBSP 
-extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>>
-implements MapRedBSPConstants{
+extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>>{
 
   private final static Log LOG = LogFactory.getLog(MapRedBSP.class);
 
@@ -60,18 +59,19 @@ implements MapRedBSPConstants{
   public void setup(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer){
 
-    String mapperClassName  = peer.getConfiguration().get(
-        MAPPER_CLASS_NAME, Mapper.class.getCanonicalName());
+    Configuration conf = peer.getConfiguration();
+    String mapperClassName  = conf.get(MAPPER_CLASS_NAME,
+        Mapper.class.getCanonicalName());
 
-    String reducerClassName = peer.getConfiguration().get(
-        REDUCER_CLASS_NAME, Reducer.class.getCanonicalName());
+    String reducerClassName = conf.get(REDUCER_CLASS_NAME,
+        Reducer.class.getCanonicalName());
 
-    String mapInKeyClassName  = peer.getConfiguration().get(MAP_IN_KEY_CLASS_NAME);
-    String mapInValClassName  = peer.getConfiguration().get(MAP_IN_VAL_CLASS_NAME);
-    String mapOutKeyClassName = peer.getConfiguration().get(MAP_OUT_KEY_CLASS_NAME);
-    String mapOutValClassName = peer.getConfiguration().get(MAP_OUT_VAL_CLASS_NAME);
-    String redOutKeyClassName = peer.getConfiguration().get(REDUCE_OUT_KEY_CLASS_NAME);
-    String redOutValClassName = peer.getConfiguration().get(REDUCE_OUT_VAL_CLASS_NAME);
+    String mapInKeyClassName  = conf.get(MAP_IN_KEY_CLASS_NAME);
+    String mapInValClassName  = conf.get(MAP_IN_VAL_CLASS_NAME);
+    String mapOutKeyClassName = conf.get(MAP_OUT_KEY_CLASS_NAME);
+    String mapOutValClassName = conf.get(MAP_OUT_VAL_CLASS_NAME);
+    String redOutKeyClassName = conf.get(REDUCE_OUT_KEY_CLASS_NAME);
+    String redOutValClassName = conf.get(REDUCE_OUT_VAL_CLASS_NAME);
 
     try {
       mapInKey  = ReflectionUtils.newInstance(mapInKeyClassName);
@@ -99,7 +99,7 @@ implements MapRedBSPConstants{
 
     //Use SortedDiskQueue (TODO: Come up with a faster queue implementation)
     //TODO: Change hama code, there's no need to use a SortedDiskQueue in superstep 0.
-    peer.getConfiguration().set(MessageManager.QUEUE_TYPE_CLASS, SortedDiskQueue.class.getCanonicalName());
+    conf.set(MessageManager.QUEUE_TYPE_CLASS, SortedDiskQueue.class.getCanonicalName());
   }
 
 
@@ -117,6 +117,12 @@ implements MapRedBSPConstants{
     while(peer.readNext(mapInKey, mapInVal)){
       mapper.map(mapInKey, mapInVal, mapperContext);
     }
+    
+    peer.sync();
+    
+    //SUPERSTEP-1
+    //[REDUCE PHASE]
+    
   }
 
   @Override

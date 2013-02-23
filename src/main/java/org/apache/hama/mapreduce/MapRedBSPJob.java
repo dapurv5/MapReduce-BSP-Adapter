@@ -22,6 +22,8 @@
  */
 package org.apache.hama.mapreduce;
 
+import static org.apache.hama.mapreduce.MapRedBSPConstants.*;
+
 import java.io.IOException;
 
 import org.apache.commons.logging.Log;
@@ -36,7 +38,7 @@ import org.apache.hama.bsp.InputFormat;
 import org.apache.hama.bsp.OutputFormat;
 
 
-public class MapRedBSPJob {
+public class MapRedBSPJob{
   
   private final static Log LOG = LogFactory.getLog(MapRedBSPJob.class);
 
@@ -54,37 +56,37 @@ public class MapRedBSPJob {
   }
   
   public void setMapperClass(Class<? extends Mapper<?,?,?,?>> mapperClass){
-    conf.set(MapRedBSPConstants.MAPPER_CLASS_NAME, mapperClass.getCanonicalName());
+    conf.set(MAPPER_CLASS_NAME, mapperClass.getCanonicalName());
   }
   
   public void setReducerClass(Class<? extends Reducer<?,?,?,?>> reducerClass){
-    conf.set(MapRedBSPConstants.REDUCER_CLASS_NAME, reducerClass.getCanonicalName());
+    conf.set(REDUCER_CLASS_NAME, reducerClass.getCanonicalName());
   }
   
   public void setMapInputKeyClass(Class<? extends WritableComparable<?>> mapInKeyClass){
-    conf.set(MapRedBSPConstants.MAP_IN_KEY_CLASS_NAME, mapInKeyClass.getCanonicalName());
+    conf.set(MAP_IN_KEY_CLASS_NAME, mapInKeyClass.getCanonicalName());
   }
   
   public void setMapInputValueClass(Class<? extends WritableComparable<?>> mapInValClass){
-    conf.set(MapRedBSPConstants.MAP_IN_VAL_CLASS_NAME, mapInValClass.getCanonicalName());
+    conf.set(MAP_IN_VAL_CLASS_NAME, mapInValClass.getCanonicalName());
   }
   
   public void setMapOutputKeyClass(Class<? extends WritableComparable<?>> mapOutKeyClass){
-    conf.set(MapRedBSPConstants.MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getCanonicalName());
+    conf.set(MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getCanonicalName());
   }
   
   public void setMapOutputValueClass(Class<? extends Writable> mapOutValClass){
-    conf.set(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getCanonicalName());
+    conf.set(MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getCanonicalName());
   }
   
   
   public void setOutputKeyClass(Class<? extends WritableComparable<?>> outKeyClass){
-    conf.set(MapRedBSPConstants.REDUCE_OUT_KEY_CLASS_NAME, outKeyClass.getCanonicalName());
+    conf.set(REDUCE_OUT_KEY_CLASS_NAME, outKeyClass.getCanonicalName());
     job.setOutputKeyClass(outKeyClass);
   }
   
   public void setOutputValueClass(Class<? extends Writable> outValClass){
-    conf.set(MapRedBSPConstants.REDUCE_OUT_VAL_CLASS_NAME, outValClass.getCanonicalName());
+    conf.set(REDUCE_OUT_VAL_CLASS_NAME, outValClass.getCanonicalName());
     job.setOutputValueClass(outValClass);
   }
   
@@ -101,7 +103,7 @@ public class MapRedBSPJob {
   }
   
   public void setPartitionerClass(Class<? extends 
-      Partitioner<WritableComparable<?>, Writable>> partitioner){
-    
+      Partitioner<WritableComparable<?>, Writable>> partitionerClass){
+    conf.set(PARTITIONER_CLASS_NAME, partitionerClass.getCanonicalName());
   }
 }
