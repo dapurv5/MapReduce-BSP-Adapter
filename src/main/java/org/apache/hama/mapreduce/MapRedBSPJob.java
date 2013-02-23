@@ -63,23 +63,26 @@ public class MapRedBSPJob{
     conf.set(REDUCER_CLASS_NAME, reducerClass.getCanonicalName());
   }
   
-  public void setMapInputKeyClass(Class<? extends WritableComparable<?>> mapInKeyClass){
+  @SuppressWarnings("rawtypes")
+  public void setMapInputKeyClass(Class mapInKeyClass){
     conf.set(MAP_IN_KEY_CLASS_NAME, mapInKeyClass.getCanonicalName());
   }
   
-  public void setMapInputValueClass(Class<? extends WritableComparable<?>> mapInValClass){
+  @SuppressWarnings("rawtypes")
+  public void setMapInputValueClass(Class mapInValClass){
     conf.set(MAP_IN_VAL_CLASS_NAME, mapInValClass.getCanonicalName());
   }
   
-  public void setMapOutputKeyClass(Class<? extends WritableComparable<?>> mapOutKeyClass){
+  @SuppressWarnings("rawtypes")
+  public void setMapOutputKeyClass(Class mapOutKeyClass){
     conf.set(MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getCanonicalName());
   }
   
-  public void setMapOutputValueClass(Class<? extends Writable> mapOutValClass){
+  @SuppressWarnings("rawtypes")
+  public void setMapOutputValueClass(Class mapOutValClass){
     conf.set(MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getCanonicalName());
   }
-  
-  
+    
   public void setOutputKeyClass(Class<? extends WritableComparable<?>> outKeyClass){
     conf.set(REDUCE_OUT_KEY_CLASS_NAME, outKeyClass.getCanonicalName());
     job.setOutputKeyClass(outKeyClass);
@@ -105,5 +108,10 @@ public class MapRedBSPJob{
   public void setPartitionerClass(Class<? extends 
       Partitioner<WritableComparable<?>, Writable>> partitionerClass){
     conf.set(PARTITIONER_CLASS_NAME, partitionerClass.getCanonicalName());
+  }
+  
+  public void waitForCompletion(boolean verbose) 
+      throws IOException, InterruptedException, ClassNotFoundException{
+    job.waitForCompletion(verbose);
   }
 }

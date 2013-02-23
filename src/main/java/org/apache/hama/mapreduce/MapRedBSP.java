@@ -25,6 +25,8 @@ package org.apache.hama.mapreduce;
 import static org.apache.hama.mapreduce.MapRedBSPConstants.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.hama.bsp.message.queue.SortedDiskQueue;
 import org.apache.commons.logging.Log;
@@ -127,19 +129,40 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
     }
 
     peer.sync();
+    
+    Reducer.Context reducerContext = reducer.new Context(this);
 
     //SUPERSTEP-1
-    //[REDUCE PHASE]
-    while(true){
-
+    //[REDUCE PHASE]    
+    List<Writable> valList = new ArrayList<Writable>();
+    KeyValuePair msg = (KeyValuePair) peer.getCurrentMessage();
+    boolean flag = (msg != null);
+    assert(flag == true);
+    mapOutKey = msg.getKey();
+    mapOutVal = msg.getValue();
+    
+    while(flag){
+      WritableComparable<?> mapOutKeyNxt = ReflectionUtils.
+          newInstance(mapOutKey.getClass());
+      Writable mapOutValNxt = ReflectionUtils.
+          newInstance(mapOutVal.getClass());
+      msg = (KeyValuePair) peer.getCurrentMessage();
+      flag = (msg != null);
+      if(flag){
+        if(mapOutKeyNxt.equals(mapOutKey)){
+          valList.add(mapOutValNxt);
+        }
+        else{
+          reducer.reduce(mapOutKey, valList, reducerContext);
+        }
+      }
     }
-
   }
 
   @Override
   public void cleanup(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer){
-    //    cacheManager.shutdown();
+    
   }
 
   /**
@@ -173,6 +196,11 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
    * Callback from {@link Reducer.Context#write(Object, Object)}
    */
   protected void reducerContextWrite(WritableComparable<?> key, Writable val){
-
+    try {
+      peer.write(key, val);
+    } catch (IOException e) {
+      LOG.error("Error in writing to fs", e);
+      e.printStackTrace();
+    }
   }
 }
