@@ -32,10 +32,12 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hama.bsp.BSP;
 import org.apache.hama.bsp.BSPPeer;
 import org.apache.hama.bsp.message.MessageManager;
 import org.apache.hama.bsp.sync.SyncException;
+import org.apache.hama.util.KeyValuePair;
 import org.apache.hama.util.ReflectionUtils;
 
 /**
@@ -55,11 +57,17 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
   private WritableComparable<?> redOutKey;
   private Writable              redOutVal;
 
+  private BSPPeer<WritableComparable<?>, Writable,
+  WritableComparable<?>, Writable, WritableComparable<?>> peer;
+  private Configuration conf;
+
   @SuppressWarnings("unchecked")
   public void setup(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer){
 
-    Configuration conf = peer.getConfiguration();
+    this.conf = peer.getConfiguration();
+    this.peer = peer;
+
     String mapperClassName  = conf.get(MAPPER_CLASS_NAME,
         Mapper.class.getCanonicalName());
 
@@ -117,12 +125,15 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
     while(peer.readNext(mapInKey, mapInVal)){
       mapper.map(mapInKey, mapInVal, mapperContext);
     }
-    
+
     peer.sync();
-    
+
     //SUPERSTEP-1
     //[REDUCE PHASE]
-    
+    while(true){
+
+    }
+
   }
 
   @Override
@@ -130,13 +141,38 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer){
     //    cacheManager.shutdown();
   }
-  
+
+  /**
+   * Callback from {@link Mapper.Context#write(Object, Object)}
+   */
+  @SuppressWarnings({ "rawtypes", "unchecked" })
   protected void mapperContextWrite(WritableComparable<?> key, Writable val){
-    //get the paritioner
-    //peer.send to the appropriate peer.
+    String partitionerClassName = conf.get(PARTITIONER_CLASS_NAME);
+    Partitioner<WritableComparable<?>, Writable> partitioner = null;
+    try {
+      partitioner = ReflectionUtils.newInstance(partitionerClassName);
+
+    } catch (ClassNotFoundException e) {
+      LOG.error("Could not initialize partitioner class", e);
+      e.printStackTrace();
+      throw new RuntimeException(e);
+    }
+
+    int partition = partitioner.getPartition(key, val, peer.getNumPeers());
+    try {
+      peer.send(peer.getPeerName(partition),
+          new KeyValuePair(key, val));
+
+    } catch (IOException e) {
+      LOG.error("Error sending the message", e);
+      e.printStackTrace();
+    }
   }
-  
+
+  /**
+   * Callback from {@link Reducer.Context#write(Object, Object)}
+   */
   protected void reducerContextWrite(WritableComparable<?> key, Writable val){
-    //write to the disk.
+
   }
 }

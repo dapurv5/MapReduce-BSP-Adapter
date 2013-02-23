@@ -100,7 +100,7 @@
 	<classpathentry kind="var" path="M2_REPO/org/mortbay/jetty/jsp-2.1/6.1.14/jsp-2.1-6.1.14.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/eclipse/jdt/core/3.1.1/core-3.1.1.jar"/>
 	<classpathentry kind="var" path="M2_REPO/ant/ant/1.6.5/ant-1.6.5.jar"/>
-	<classpathentry kind="var" path="M2_REPO/org/apache/hadoop/hadoop-core/1.0.0/hadoop-core-1.0.0.jar"/>
+	<classpathentry kind="var" path="M2_REPO/org/apache/hadoop/hadoop-core/1.0.0/hadoop-core-1.0.0.jar" sourcepath="/M2_REPO"/>
 	<classpathentry kind="var" path="M2_REPO/xmlenc/xmlenc/0.52/xmlenc-0.52.jar"/>
 	<classpathentry kind="var" path="M2_REPO/org/apache/commons/commons-math/2.1/commons-math-2.1.jar" sourcepath="M2_REPO/org/apache/commons/commons-math/2.1/commons-math-2.1-sources.jar">
 		<attributes>
