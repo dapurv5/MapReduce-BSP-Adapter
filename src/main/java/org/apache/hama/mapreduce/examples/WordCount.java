@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.util.StringTokenizer;
 
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.partition.HashPartitioner;
 import org.apache.hama.bsp.TextInputFormat;
 import org.apache.hama.bsp.TextOutputFormat;
 import org.apache.hama.mapreduce.MapRedBSPJob;
@@ -60,8 +62,17 @@ public class WordCount {
 
 
   public static void main(String[] args) {
+    
+    args = new String[2];
+    args[0] = "/home/dapurv5/Desktop/hdfs-input/input";
+    args[1] = "/home/dapurv5/Desktop/hdfs-output/wordcount";
+    
     MapRedBSPJob job = new MapRedBSPJob();
     job.setJobName("Map Reduce BSP Job");
+    
+    job.setInputPath(new Path(args[0]));
+    job.setOutputPath(new Path(args[1]));
+    
     job.setInputFormat(TextInputFormat.class);
     job.setOutputFormat(TextOutputFormat.class);
 
@@ -72,6 +83,7 @@ public class WordCount {
 
     job.setMapperClass(WordCountMapper.class);
     job.setReducerClass(WordCountReducer.class);
+    job.setPartitionerClass(HashPartitioner.class);
 
     try {
       job.waitForCompletion(true);

@@ -29,6 +29,7 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Partitioner;
@@ -105,13 +106,21 @@ public class MapRedBSPJob{
     job.setJobName(name);
   }
   
-  public void setPartitionerClass(Class<? extends 
-      Partitioner<WritableComparable<?>, Writable>> partitionerClass){
+  @SuppressWarnings("rawtypes")
+  public void setPartitionerClass(Class partitionerClass){
     conf.set(PARTITIONER_CLASS_NAME, partitionerClass.getCanonicalName());
   }
   
   public void waitForCompletion(boolean verbose) 
       throws IOException, InterruptedException, ClassNotFoundException{
     job.waitForCompletion(verbose);
+  }
+  
+  public void setInputPath(Path path){
+    job.setInputPath(path);
+  }
+  
+  public void setOutputPath(Path path){
+    job.setOutputPath(path);
   }
 }
