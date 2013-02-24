@@ -1,6 +1,7 @@
 package org.apache.hama.mapreduce.examples;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.StringTokenizer;
 
 
@@ -24,11 +25,15 @@ public class WordCount {
 
     private final static IntWritable one = new IntWritable(1);
     private final static Text word = new Text();
-    private LexicalizedParser lp;
+    private static LexicalizedParser lp;
+    static{
+      URL url = WordCountMapper.class.getResource("/englishPCFG.ser.gz");
+      lp =  new LexicalizedParser(url.toString());
+    }
 
     @Override
     public void map(LongWritable key, Text val, Context context) throws
-    IOException, InterruptedException{            
+    IOException, InterruptedException{
       StringTokenizer itr = new StringTokenizer(val.toString());
       while (itr.hasMoreTokens()) {
         String token = itr.nextToken();
@@ -64,7 +69,7 @@ public class WordCount {
   public static void main(String[] args) {
     
     args = new String[2];
-    args[0] = "/home/dapurv5/Desktop/hdfs-input/input";
+    args[0] = "/home/dapurv5/Desktop/hdfs-input/literature";
     args[1] = "/home/dapurv5/Desktop/hdfs-output/wordcount";
     
     MapRedBSPJob job = new MapRedBSPJob();
@@ -81,6 +86,9 @@ public class WordCount {
     job.setMapInputValueClass(Text.class);
     job.setMapOutputKeyClass(Text.class);
     job.setMapOutputValueClass(IntWritable.class);
+    
+    job.setReduceOutputKeyClass(Text.class);
+    job.setReduceOutputValueClass(IntWritable.class);
 
     job.setMapperClass(WordCountMapper.class);
     job.setReducerClass(WordCountReducer.class);

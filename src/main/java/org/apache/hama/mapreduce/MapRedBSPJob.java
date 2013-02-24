@@ -57,41 +57,41 @@ public class MapRedBSPJob{
     }
   }
   
-  public void setMapperClass(Class<? extends Mapper<?,?,?,?>> mapperClass){
-    conf.set(MAPPER_CLASS_NAME, mapperClass.getCanonicalName());
+  public void setMapperClass(Class mapperClass){
+    conf.set(MAPPER_CLASS_NAME, mapperClass.getName());
   }
   
-  public void setReducerClass(Class<? extends Reducer<?,?,?,?>> reducerClass){
-    conf.set(REDUCER_CLASS_NAME, reducerClass.getCanonicalName());
+  public void setReducerClass(Class reducerClass){
+    conf.set(REDUCER_CLASS_NAME, reducerClass.getName());
   }
   
   @SuppressWarnings("rawtypes")
   public void setMapInputKeyClass(Class mapInKeyClass){
-    conf.set(MAP_IN_KEY_CLASS_NAME, mapInKeyClass.getCanonicalName());
+    conf.set(MAP_IN_KEY_CLASS_NAME, mapInKeyClass.getName());
   }
   
   @SuppressWarnings("rawtypes")
   public void setMapInputValueClass(Class mapInValClass){
-    conf.set(MAP_IN_VAL_CLASS_NAME, mapInValClass.getCanonicalName());
+    conf.set(MAP_IN_VAL_CLASS_NAME, mapInValClass.getName());
   }
   
   @SuppressWarnings("rawtypes")
   public void setMapOutputKeyClass(Class mapOutKeyClass){
-    conf.set(MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getCanonicalName());
+    conf.set(MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getName());
   }
   
   @SuppressWarnings("rawtypes")
   public void setMapOutputValueClass(Class mapOutValClass){
-    conf.set(MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getCanonicalName());
+    conf.set(MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getName());
   }
     
-  public void setOutputKeyClass(Class<? extends WritableComparable<?>> outKeyClass){
-    conf.set(REDUCE_OUT_KEY_CLASS_NAME, outKeyClass.getCanonicalName());
+  public void setReduceOutputKeyClass(Class outKeyClass){
+    conf.set(REDUCE_OUT_KEY_CLASS_NAME, outKeyClass.getName());
     job.setOutputKeyClass(outKeyClass);
   }
   
-  public void setOutputValueClass(Class<? extends Writable> outValClass){
-    conf.set(REDUCE_OUT_VAL_CLASS_NAME, outValClass.getCanonicalName());
+  public void setReduceOutputValueClass(Class outValClass){
+    conf.set(REDUCE_OUT_VAL_CLASS_NAME, outValClass.getName());
     job.setOutputValueClass(outValClass);
   }
   
@@ -109,7 +109,7 @@ public class MapRedBSPJob{
   
   @SuppressWarnings("rawtypes")
   public void setPartitionerClass(Class partitionerClass){
-    conf.set(PARTITIONER_CLASS_NAME, partitionerClass.getCanonicalName());
+    conf.set(PARTITIONER_CLASS_NAME, partitionerClass.getName());
   }
   
   public void waitForCompletion(boolean verbose) 
@@ -128,4 +128,6 @@ public class MapRedBSPJob{
   public void setJarByClass(Class<?> cls){
     job.setJarByClass(cls);
   }
+  
+  
 }

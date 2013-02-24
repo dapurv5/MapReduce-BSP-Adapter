@@ -54,7 +54,8 @@ import org.apache.hama.util.SortedSequenceFile;
  * The job_id dir will never be deleted. So you need a cronjob to do the
  * cleanup for you. <br/>
  */ 
-public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>{
+public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
+, MessageTransferQueue<M>{
 
   public static final String DISK_QUEUE_PATH_KEY = "bsp.disk.queue.dir";
   private static final int MAX_RETRIES = 4;
@@ -265,6 +266,16 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>{
   @Override
   public boolean isMessageSerialized() {
     return false;
+  }
+
+  @Override
+  public MessageQueue<M> getSenderQueue() {
+    return this;
+  }
+
+  @Override
+  public MessageQueue<M> getReceiverQueue() {
+    return this;
   }
 }
 

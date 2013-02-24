@@ -71,7 +71,7 @@ public class SortedSequenceFile{
       this.keyClass = keyClass;
       this.valClass = valClass;
       this.spill    = TreeMultiset.create(); 
-      SPILL_SIZE    = Integer.parseInt(conf.get(KEY_VALUES_PER_SPILL_CONF,"10"));      
+      SPILL_SIZE    = Integer.parseInt(conf.get(KEY_VALUES_PER_SPILL_CONF,"1000"));      
     }
 
     public void append(KEY key, VALUE val){

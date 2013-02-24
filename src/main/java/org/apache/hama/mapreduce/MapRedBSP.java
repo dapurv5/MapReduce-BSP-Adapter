@@ -34,6 +34,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hama.bsp.BSP;
 import org.apache.hama.bsp.BSPPeer;
@@ -83,18 +84,18 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
       mapInKey  = ReflectionUtils.newInstance(mapInKeyClassName);
       mapInVal  = ReflectionUtils.newInstance(mapInValClassName);
       mapOutKey = ReflectionUtils.newInstance(mapOutKeyClassName);
-      mapOutVal = ReflectionUtils.newInstance(mapOutValClassName);
+      mapOutVal = ReflectionUtils.newInstance(mapOutValClassName);      
 
     } catch (ClassNotFoundException e1) {
       LOG.error(e1);
       throw new RuntimeException(e1);
     }
+    
+    System.err.println("\n\n\n\n\n\n _____");
 
     try {
-      mapper  = (Mapper<WritableComparable<?>, Writable, WritableComparable<?>, Writable>)
-          ReflectionUtils.newInstance(mapperClassName);
-      reducer = (Reducer<WritableComparable<?>, Writable, WritableComparable<?>, Writable>)
-          ReflectionUtils.newInstance(reducerClassName);
+      mapper  = ReflectionUtils.newInstance(mapperClassName);
+      reducer = ReflectionUtils.newInstance(reducerClassName);
 
     } catch (ClassNotFoundException e) {
       LOG.error("Could not initialize mapper/reducer Exiting...", e);
@@ -128,22 +129,31 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
 
     //SUPERSTEP-1
     //[REDUCE PHASE]    
-    List<Writable> valList = new ArrayList<Writable>();            
-    boolean flag = peer.readNext(mapOutKey, mapOutVal);
+    List<Writable> valList = new ArrayList<Writable>();
+    KeyValuePair msg = new KeyValuePair();
+    KeyValuePair msgNxt = null;
+    
+    msg = (KeyValuePair) peer.getCurrentMessage();
+    boolean flag = (msg != null);//peer.readNext(mapOutKey, mapOutVal);
     assert(flag == true);
     
-    while(flag){
-      WritableComparable<?> mapOutKeyNxt = ReflectionUtils.
-          newInstance(mapOutKey.getClass());
-      Writable mapOutValNxt = ReflectionUtils.
-          newInstance(mapOutVal.getClass());
-      flag = peer.readNext(mapOutKeyNxt, mapOutValNxt);
+    while(flag){            
+      WritableComparable<?> mapOutKeyNxt = ReflectionUtils.newInstance(mapOutKey.getClass());
+      Writable mapOutValNxt = ReflectionUtils.newInstance(mapOutVal.getClass());
+      msgNxt = new KeyValuePair(mapOutKeyNxt, mapOutValNxt);
+      Writable currMsg = peer.getCurrentMessage();
+      
+      flag = (currMsg != null);
       if(flag){
-        if(mapOutKeyNxt.equals(mapOutKey)){
-          valList.add(mapOutValNxt);
+        WritableUtils.cloneInto(msgNxt, currMsg);
+        
+        if(msgNxt.getKey().equals(msg.getKey())){
+          valList.add(msgNxt.getValue());
         }
         else{
           reducer.reduce(mapOutKey, valList, reducerContext);
+          valList = new ArrayList<>();
+          msg = msgNxt;
         }
       }
     }

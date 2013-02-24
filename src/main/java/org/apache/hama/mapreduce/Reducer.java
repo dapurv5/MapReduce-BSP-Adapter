@@ -30,7 +30,7 @@ import org.apache.hadoop.io.WritableComparable;
 
 public class Reducer<KEYIN,VALUEIN,KEYOUT,VALUEOUT> {
   
-  protected class Context{
+  public class Context{
     private final MapRedBSP bsp;
     
     public Context(MapRedBSP bsp){

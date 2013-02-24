@@ -29,7 +29,7 @@ import org.apache.hadoop.io.WritableComparable;
 
 public class Mapper<KEYIN,VALUEIN,KEYOUT,VALUEOUT>{
 
-  protected class Context{
+  public class Context{
     
     private final MapRedBSP bsp;
     
