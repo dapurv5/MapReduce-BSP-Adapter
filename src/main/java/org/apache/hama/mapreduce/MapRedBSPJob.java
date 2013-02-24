@@ -49,6 +49,7 @@ public class MapRedBSPJob{
   public MapRedBSPJob(){
     try {
       job = new BSPJob(conf);
+      job.setBspClass(MapRedBSP.class);
       
     } catch (IOException e) {
       LOG.error("Cannot instantiate bsp map reduce job. Exiting", e);
@@ -122,5 +123,9 @@ public class MapRedBSPJob{
   
   public void setOutputPath(Path path){
     job.setOutputPath(path);
+  }
+  
+  public void setJarByClass(Class<?> cls){
+    job.setJarByClass(cls);
   }
 }

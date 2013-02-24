@@ -56,8 +56,6 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
   private Writable              mapInVal;
   private WritableComparable<?> mapOutKey;
   private Writable              mapOutVal;
-  private WritableComparable<?> redOutKey;
-  private Writable              redOutVal;
 
   private BSPPeer<WritableComparable<?>, Writable,
   WritableComparable<?>, Writable, WritableComparable<?>> peer;
@@ -80,16 +78,12 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
     String mapInValClassName  = conf.get(MAP_IN_VAL_CLASS_NAME);
     String mapOutKeyClassName = conf.get(MAP_OUT_KEY_CLASS_NAME);
     String mapOutValClassName = conf.get(MAP_OUT_VAL_CLASS_NAME);
-    String redOutKeyClassName = conf.get(REDUCE_OUT_KEY_CLASS_NAME);
-    String redOutValClassName = conf.get(REDUCE_OUT_VAL_CLASS_NAME);
 
     try {
       mapInKey  = ReflectionUtils.newInstance(mapInKeyClassName);
       mapInVal  = ReflectionUtils.newInstance(mapInValClassName);
       mapOutKey = ReflectionUtils.newInstance(mapOutKeyClassName);
       mapOutVal = ReflectionUtils.newInstance(mapOutValClassName);
-      redOutKey = ReflectionUtils.newInstance(redOutKeyClassName);
-      redOutVal = ReflectionUtils.newInstance(redOutValClassName);
 
     } catch (ClassNotFoundException e1) {
       LOG.error(e1);
@@ -134,20 +128,16 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
 
     //SUPERSTEP-1
     //[REDUCE PHASE]    
-    List<Writable> valList = new ArrayList<Writable>();
-    KeyValuePair msg = (KeyValuePair) peer.getCurrentMessage();
-    boolean flag = (msg != null);
+    List<Writable> valList = new ArrayList<Writable>();            
+    boolean flag = peer.readNext(mapOutKey, mapOutVal);
     assert(flag == true);
-    mapOutKey = msg.getKey();
-    mapOutVal = msg.getValue();
     
     while(flag){
       WritableComparable<?> mapOutKeyNxt = ReflectionUtils.
           newInstance(mapOutKey.getClass());
       Writable mapOutValNxt = ReflectionUtils.
           newInstance(mapOutVal.getClass());
-      msg = (KeyValuePair) peer.getCurrentMessage();
-      flag = (msg != null);
+      flag = peer.readNext(mapOutKeyNxt, mapOutValNxt);
       if(flag){
         if(mapOutKeyNxt.equals(mapOutKey)){
           valList.add(mapOutValNxt);
@@ -159,11 +149,6 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
     }
   }
 
-  @Override
-  public void cleanup(
-      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer){
-    
-  }
 
   /**
    * Callback from {@link Mapper.Context#write(Object, Object)}

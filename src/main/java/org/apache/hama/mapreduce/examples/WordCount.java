@@ -69,6 +69,7 @@ public class WordCount {
     
     MapRedBSPJob job = new MapRedBSPJob();
     job.setJobName("Map Reduce BSP Job");
+    job.setJarByClass(WordCount.class);
     
     job.setInputPath(new Path(args[0]));
     job.setOutputPath(new Path(args[1]));
@@ -83,7 +84,7 @@ public class WordCount {
 
     job.setMapperClass(WordCountMapper.class);
     job.setReducerClass(WordCountReducer.class);
-    job.setPartitionerClass(HashPartitioner.class);
+    job.setPartitionerClass(HashPartitioner.class);    
 
     try {
       job.waitForCompletion(true);
