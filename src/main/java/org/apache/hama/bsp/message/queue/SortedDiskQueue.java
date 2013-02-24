@@ -22,6 +22,8 @@
  */
 package org.apache.hama.bsp.message.queue;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
@@ -31,12 +33,16 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataInputBuffer;
+import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hama.bsp.TaskAttemptID;
 import org.apache.hama.bsp.message.queue.MessageQueue;
+import org.apache.hama.util.KeyValuePair;
 import org.apache.hama.util.ReflectionUtils;
 import org.apache.hama.util.SortedSequenceFile;
 
@@ -72,13 +78,10 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   private Path queuePath;  
   private TaskAttemptID id;
 
-  //Can only instantiate these after the first add.
-  @SuppressWarnings("rawtypes")
-  private Class keyClass = null;
-  
   @SuppressWarnings("rawtypes")
   private WritableComparable key = null;
-  
+  private Writable val = null;
+
 
   /* (non-Javadoc)
    * @see org.apache.hama.bsp.message.MessageQueue#add(java.lang.Object)
@@ -86,18 +89,19 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   @SuppressWarnings("unchecked")
   @Override
   public void add(M elem) {
-    if(size == 0){
-      keyClass = elem.getClass();
-      try {
-        key = ReflectionUtils.newInstance(keyClass.getCanonicalName());
-      } catch (ClassNotFoundException e) {
-        LOG.error("Cannot instantiate keyClass.", e);
-      }
-      writer = SortedSequenceFile.<WritableComparable, Writable>createWriter(fs, conf, queuePath, 
-          keyClass, NullWritable.class);
+    if(size == 0){      
+      key = ReflectionUtils.newInstance(((KeyValuePair)elem)
+          .getKey().getClass());
+
+      val = ReflectionUtils.newInstance(((KeyValuePair)elem)
+          .getValue().getClass());
+
+      writer = SortedSequenceFile.<WritableComparable, Writable>createWriter(
+          fs, conf, queuePath, key.getClass(), val.getClass());
     }
     size++;
-    writer.append((WritableComparable<M>)elem,NullWritable.get());
+    writer.append(((KeyValuePair) elem).getKey(),
+        ((KeyValuePair)elem).getValue());
   }
 
   /* (non-Javadoc)
@@ -213,8 +217,13 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
     size--;
     for(int tries = 0; tries < MAX_RETRIES; tries++){      
       try {
-        reader.next(key);
-        return (M)key;
+//        System.out.println(reader.getMetadata());/////////
+        reader.next(key, val);
+        
+        System.out.println("Polling to q elem="+key);
+        System.out.println("Polling to q elem="+val);
+        
+        return (M) new KeyValuePair(key, val);
       } catch (IOException e) {
         LOG.error("Retrying for the " + tries + "th time!", e);
       }     
@@ -228,7 +237,11 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   @Override
   public void prepareRead() {
     try {
-      writer.close();
+      if(writer != null){
+        writer.close(); 
+      }      
+      System.out.println("Reader has to read from "+queuePath.toString());
+      System.out.println(queuePath.getParent().getName());
       reader = new SequenceFile.Reader(fs, queuePath, conf);
     } catch (IOException e) {
       LOG.error("Cannot prepare to read",e);

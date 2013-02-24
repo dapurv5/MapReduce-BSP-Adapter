@@ -50,6 +50,7 @@ public class MapRedBSPJob{
     try {
       job = new BSPJob(conf);
       job.setBspClass(MapRedBSP.class);
+      job.setNumBspTask(1);
       
     } catch (IOException e) {
       LOG.error("Cannot instantiate bsp map reduce job. Exiting", e);
@@ -68,11 +69,13 @@ public class MapRedBSPJob{
   @SuppressWarnings("rawtypes")
   public void setMapInputKeyClass(Class mapInKeyClass){
     conf.set(MAP_IN_KEY_CLASS_NAME, mapInKeyClass.getName());
+    job.setInputKeyClass(mapInKeyClass);
   }
   
   @SuppressWarnings("rawtypes")
   public void setMapInputValueClass(Class mapInValClass){
     conf.set(MAP_IN_VAL_CLASS_NAME, mapInValClass.getName());
+    job.setInputValueClass(mapInValClass);
   }
   
   @SuppressWarnings("rawtypes")

@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.WritableUtils;
 
 import com.google.common.collect.TreeMultiset;
 
@@ -46,7 +47,7 @@ import com.google.common.collect.TreeMultiset;
  * Uses "/tmp/spills/" as a temporary storage.
  */
 public class SortedSequenceFile{
-    
+
   private static final String KEY_VALUES_PER_SPILL_CONF = "spill.size";
   private static final Log LOG = LogFactory.getLog(SortedSequenceFile.class);
 
@@ -75,7 +76,15 @@ public class SortedSequenceFile{
     }
 
     public void append(KEY key, VALUE val){
-      spill.add(new KeyValuePair<KEY, VALUE>(key, val));
+      KEY keyCpy = ReflectionUtils.newInstance(keyClass);
+      try {
+        WritableUtils.cloneInto(keyCpy, key);
+        
+      } catch (IOException e) {
+        LOG.error("Error buffering msgs", e);
+        e.printStackTrace();
+      }
+      spill.add(new KeyValuePair<KEY, VALUE>(keyCpy, val));
       if(spill.size() == SPILL_SIZE){
         spillToDisk();
       }
@@ -105,12 +114,12 @@ public class SortedSequenceFile{
           }
         }
       }      
-      }
+    }
 
     /* (non-Javadoc)
      * @see java.io.Closeable#close()
      */
-      @Override
+    @Override
     public void close() throws IOException {
       if(spill.size() > 0){
         spillToDisk();
@@ -119,8 +128,8 @@ public class SortedSequenceFile{
       Files.<KEY, VALUE>merge(fs, inputPath, path, keyClass, valClass);
       fs.delete(inputPath, true);
     }
-    
-    
+
+
   }
 
   @SuppressWarnings({ "rawtypes", "unchecked" })

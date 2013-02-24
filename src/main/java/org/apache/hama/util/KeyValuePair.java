@@ -31,7 +31,6 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
-import org.apache.hadoop.util.ReflectionUtils;
 
 import com.google.common.base.Objects;
 
@@ -104,9 +103,9 @@ implements WritableComparable<KeyValuePair<KEY,VALUE>>{
 
   @Override
   public void write(DataOutput out) throws IOException {
-    out.writeUTF(getKey().getClass().getCanonicalName());
+    out.writeUTF(getKey().getClass().getName());
     getKey().write(out);
-    out.writeUTF(getValue().getClass().getCanonicalName());
+    out.writeUTF(getValue().getClass().getName());
     getValue().write(out);
   }
 
@@ -114,19 +113,20 @@ implements WritableComparable<KeyValuePair<KEY,VALUE>>{
   @SuppressWarnings("unchecked")
   @Override
   public void readFields(DataInput in) throws IOException {
+    System.out.println("Inside readFields");///////////////
     String firstClass = in.readUTF();
+    System.out.println(firstClass);
     try {
-      setKey((KEY)ReflectionUtils.newInstance(Class.forName(
-          firstClass), null));      
+      setKey((KEY)ReflectionUtils.newInstance(firstClass));      
       getKey().readFields(in);
+      System.out.println(getKey());
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
     }    
     
     String secondClass = in.readUTF();
     try {
-      setValue((VALUE)ReflectionUtils.newInstance(Class.forName(
-          secondClass), null));
+      setValue((VALUE)ReflectionUtils.newInstance(secondClass));
       getValue().readFields(in);
     } catch (ClassNotFoundException e) {
       throw new IOException(e);

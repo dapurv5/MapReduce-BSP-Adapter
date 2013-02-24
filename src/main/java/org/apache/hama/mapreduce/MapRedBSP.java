@@ -47,7 +47,7 @@ import org.apache.hama.util.ReflectionUtils;
  * BSP class to emulate a Map-Reduce process.
  */
 public class MapRedBSP 
-extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>>{
+extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KeyValuePair>{
 
   private final static Log LOG = LogFactory.getLog(MapRedBSP.class);
 
@@ -59,12 +59,12 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
   private Writable              mapOutVal;
 
   private BSPPeer<WritableComparable<?>, Writable,
-  WritableComparable<?>, Writable, WritableComparable<?>> peer;
+  WritableComparable<?>, Writable, KeyValuePair> peer;
   private Configuration conf;
 
   @SuppressWarnings("unchecked")
   public void setup(
-      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer){
+      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KeyValuePair> peer){
 
     this.conf = peer.getConfiguration();
     this.peer = peer;
@@ -89,9 +89,7 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
     } catch (ClassNotFoundException e1) {
       LOG.error(e1);
       throw new RuntimeException(e1);
-    }
-    
-    System.err.println("\n\n\n\n\n\n _____");
+    }   
 
     try {
       mapper  = ReflectionUtils.newInstance(mapperClassName);
@@ -113,7 +111,7 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
    */
   @Override
   public void bsp(
-      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, WritableComparable<?>> peer)
+      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KeyValuePair> peer)
           throws IOException, SyncException, InterruptedException {
     //SUPERSTEP-0
     //[MAP PHASE]
@@ -124,39 +122,42 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
     }
 
     peer.sync();
-    
+    System.err.println("\n\n\n\n\n Begin Reduce Phase");    
     Reducer.Context reducerContext = reducer.new Context(this);
 
     //SUPERSTEP-1
     //[REDUCE PHASE]    
     List<Writable> valList = new ArrayList<Writable>();
-    KeyValuePair msg = new KeyValuePair();
+    KeyValuePair msg = null;
     KeyValuePair msgNxt = null;
     
-    msg = (KeyValuePair) peer.getCurrentMessage();
-    boolean flag = (msg != null);//peer.readNext(mapOutKey, mapOutVal);
+    msg = peer.getCurrentMessage();
+    System.err.println("msg = "+msg);
+    boolean flag = (msg != null);
     assert(flag == true);
     
     while(flag){            
-      WritableComparable<?> mapOutKeyNxt = ReflectionUtils.newInstance(mapOutKey.getClass());
-      Writable mapOutValNxt = ReflectionUtils.newInstance(mapOutVal.getClass());
-      msgNxt = new KeyValuePair(mapOutKeyNxt, mapOutValNxt);
-      Writable currMsg = peer.getCurrentMessage();
+//      WritableComparable<?> mapOutKeyNxt = ReflectionUtils.newInstance(mapOutKey.getClass());
+//      Writable mapOutValNxt = ReflectionUtils.newInstance(mapOutVal.getClass());
+//      msgNxt = new KeyValuePair(mapOutKeyNxt, mapOutValNxt);
+      KeyValuePair readMsg = peer.getCurrentMessage();
       
-      flag = (currMsg != null);
-      if(flag){
-        WritableUtils.cloneInto(msgNxt, currMsg);
-        
-        if(msgNxt.getKey().equals(msg.getKey())){
-          valList.add(msgNxt.getValue());
-        }
-        else{
-          reducer.reduce(mapOutKey, valList, reducerContext);
-          valList = new ArrayList<>();
-          msg = msgNxt;
-        }
-      }
+      flag = (readMsg != null);
+      System.err.println("readMsg = "+readMsg);
+//      if(flag){
+//        WritableUtils.cloneInto(msgNxt, readMsg);
+//        
+//        if(msgNxt.getKey().equals(msg.getKey())){
+//          valList.add(msgNxt.getValue());
+//        }
+//        else{
+//          reducer.reduce(mapOutKey, valList, reducerContext);
+//          valList = new ArrayList<>();
+//          msg = msgNxt;
+//        }
+//      }
     }
+    System.err.println("\n\n-----READ ALL");
   }
 
 
@@ -178,8 +179,12 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Wr
 
     int partition = partitioner.getPartition(key, val, peer.getNumPeers());
     try {
-      peer.send(peer.getPeerName(partition),
-          new KeyValuePair(key, val));
+      WritableComparable keyCpy = ReflectionUtils.newInstance(mapOutKey.getClass());
+      Writable valCpy = ReflectionUtils.newInstance(mapOutVal.getClass());
+      WritableUtils.cloneInto(keyCpy, key);
+      WritableUtils.cloneInto(valCpy, val);
+      peer.send(peer.getPeerName(partition),           
+          new KeyValuePair(keyCpy, valCpy));
 
     } catch (IOException e) {
       LOG.error("Error sending the message", e);
