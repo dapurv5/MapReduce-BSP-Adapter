@@ -38,6 +38,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hama.bsp.TaskAttemptID;
 import org.apache.hama.bsp.message.queue.MessageQueue;
+import org.apache.hama.mapreduce.MapRedBSPConstants;
 import org.apache.hama.util.KVPair;
 import org.apache.hama.util.ReflectionUtils;
 import org.apache.hama.util.SortedSequenceFile;
@@ -63,7 +64,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   private static final int MAX_RETRIES = 4;
   private static final Log LOG = LogFactory.getLog(SortedDiskQueue.class);
 
-  private static int counter = -1;
+  private static volatile int counter = -1;
 
   private int size = 0;
   private Configuration conf;
@@ -75,10 +76,9 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
 
   private Path queuePath;  
   private TaskAttemptID id;
-
-  public SortedDiskQueue(){
-    counter++;
-  }
+  
+  private Class keyClass;
+  private Class valClass;
 
 
   /* (non-Javadoc)
@@ -87,13 +87,24 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
   public void add(M elem) {
+    WritableComparable<?> key = ((KVPair)elem).getKey();
+    Writable val = ((KVPair)elem).getValue();
+    keyClass = key.getClass();
+    valClass = val.getClass();
     if(size == 0){
       writer = SortedSequenceFile.<WritableComparable, Writable>createWriter(
-          fs, conf, queuePath, elem.getClass(), NullWritable.class);
+          fs, conf, queuePath, keyClass, valClass);
       System.out.println("opening a writer for "+queuePath);////////////////
+      try {
+        if(fs.isDirectory(queuePath))
+          System.out.println("is dir");
+      } catch (IOException e) {
+        System.err.println("is dir error");
+        e.printStackTrace();
+      }
     }
     size++;
-    writer.append((WritableComparable<?>) elem, NullWritable.get());
+    writer.append( key, val);
   }
 
   /* (non-Javadoc)
@@ -172,7 +183,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
       }
     }    
     queueDir += "/sorted_disk_queue/" + id.getJobID().toString() 
-        +"/"+id.getTaskID()+"_"+counter+".seq";
+        +"/"+id.getTaskID()+"-"+counter+".seq";
     return new Path(queueDir);
   }
 
@@ -191,6 +202,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public void init(Configuration conf, TaskAttemptID id) {
+    this.counter++;
     this.id   = id;
     this.conf = conf;    
     try {
@@ -247,22 +259,33 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public M poll() {
-    if(size == 0){
+    if(size == 0 || reader == null){
+      try {
+        reader.close();
+      } catch (IOException e) {
+        LOG.error("Unable to close the reader",e);
+        e.printStackTrace();
+      }
       return null;
     }
+    
+    
     size--;
     for(int tries = 0; tries < MAX_RETRIES; tries++){      
       try {
-        KVPair kv = new KVPair();
-        System.out.println("called reader.next()");
-        reader.next(kv, NullWritable.get());
-        System.out.println("returned reader.next()");
-
-        //        System.out.println("Polling to q elem="+kv);///////
-
+        WritableComparable<?> key = ReflectionUtils.newInstance(
+            conf.get(MapRedBSPConstants.MAP_OUT_KEY_CLASS_NAME));
+        Writable val = ReflectionUtils.newInstance(
+            conf.get(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME));
+        reader.next(key, val);
+        System.out.println(key);
+        KVPair kv = new KVPair(key, val);
         return (M) kv;
       } catch (IOException e) {
         LOG.error("Retrying for the " + tries + "th time!", e);
+      } catch (ClassNotFoundException e) {
+        LOG.error("key/val not formed in poll()", e);
+        e.printStackTrace();
       }     
     }
     throw new RuntimeException("Couldn't poll from disk. Exiting...");
@@ -281,6 +304,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
       if(fs.exists(queuePath)){
         reader = new SequenceFile.Reader(fs, queuePath, conf);
       }
+      
     } catch (IOException e) {
       LOG.error("Cannot prepare to read",e);
       throw new RuntimeException(e);
@@ -292,6 +316,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public void prepareWrite() {
+    //TODO: If queuePath already exists delete it.
     // Handled in add()    
   }
 

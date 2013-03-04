@@ -36,6 +36,7 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableUtils;
+import org.apache.hama.mapreduce.MapRedBSPConstants;
 
 import com.google.common.collect.TreeMultiset;
 
@@ -66,8 +67,6 @@ public class SortedSequenceFile{
     private Class<KEY> keyClass;
     private Class<VALUE> valClass;
 
-    private static int counter = -1;
-
     private Writer(FileSystem fs, Configuration conf, Path path, Class<KEY> keyClass,
         Class<VALUE> valClass){
       this.fs       = fs;
@@ -77,7 +76,25 @@ public class SortedSequenceFile{
       this.valClass = valClass;
       this.spill    = TreeMultiset.create(); 
       SPILL_SIZE    = Integer.parseInt(conf.get(KEY_VALUES_PER_SPILL_CONF,"100"));
-      counter++;
+      cleanupInternal(fs, path);
+    }
+
+    /**
+     * Cleans up the spilling directory and final directory 
+     * prior to all operations.
+     */
+    private void cleanupInternal(FileSystem fs, Path path){
+      try{
+        if(fs.exists(path)){
+          fs.delete(path, true);
+        }
+        if(fs.exists(new Path(getSpillDir()))){
+          fs.delete(new Path(getSpillDir()), true);
+        }
+      }
+      catch(IOException e){
+        LOG.error("Unable to clear previous disk remnants", e);
+      }
     }
 
     public void append(KEY key, VALUE val){
@@ -104,7 +121,7 @@ public class SortedSequenceFile{
       try {
         writer = SequenceFile.createWriter(fs, conf,tmpPath, keyClass,valClass);
         for(KVPair<KEY, VALUE> kv:spill){
-          writer.append(kv, NullWritable.get());
+          writer.append(kv.getKey(), kv.getValue());
         }
         spill = TreeMultiset.create();
       } catch (IOException e) {
@@ -132,11 +149,11 @@ public class SortedSequenceFile{
       }
       Path inputPath = new Path(getSpillDir());
       Files.<KEY, VALUE>merge(fs, inputPath, path, keyClass, valClass);
-      fs.delete(inputPath, true);
+      //TODO: Why can't we delete inputPath at this point???
     }
 
     private String getSpillDir(){
-      return "/tmp/spills/"+Thread.currentThread().getId()+"_"+counter;
+      return "/tmp/spills/"+path.toString() + "/spills";
     }
   }
 
