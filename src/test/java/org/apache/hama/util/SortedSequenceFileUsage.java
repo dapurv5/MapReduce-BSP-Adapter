@@ -20,40 +20,50 @@
  *  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
  *  limitations under the License.
  */
-package org.apache.hama.bsp.message.queue;
+package org.apache.hama.util;
+
+import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.apache.hama.bsp.TaskAttemptID;
-import org.apache.hama.bsp.TaskID;
-import org.apache.hama.util.KVPair;
+import org.apache.hadoop.io.WritableComparable;
 
-public class SortedDiskQueueUsage {
 
-  public static void main(String[] args) {
-    TaskAttemptID id = new TaskAttemptID(new TaskID("123", 1, 2), 0);
+public class SortedSequenceFileUsage {
+
+  @SuppressWarnings({ "unchecked", "rawtypes" })
+  public static void main(String[] args) throws IOException {
+
     Configuration conf = new Configuration();
-    SortedDiskQueue q = new SortedDiskQueue();
-    q.setConf(conf);
-    q.init(conf, id);
+    FileSystem fs = FileSystem.get(conf);
+    Path path = new Path("/Users/averma/Desktop/Test/sorted.seq");
     
-    q.prepareWrite();
-    for (int i = 0; i < 10; i++) {
-      q.add((Writable)new KVPair(new Text(i+""), new IntWritable(i)));
+    //TODO: When updating hadoop version. You can add parameters here.
+    SortedSequenceFile.Writer writer = SortedSequenceFile.<WritableComparable, Writable>
+        createWriter(fs, conf, path, IntWritable.class, Text.class);
+
+    for(int i = 0; i < 20; i++){
+      writer.append(new IntWritable(i), new Text("five"));
     }
-    
-    q.add(new KVPair(new Text(20+""), new IntWritable(20)));
-    q.add(new KVPair(new Text(16+""), new IntWritable(16)));
-    
-    q.prepareRead();
-    
-    while(q.size() > 0){
-      System.out.println(q.poll());
+    for(int i = 30; i > 20; i--){
+      writer.append(new IntWritable(i), new Text("five"));
     }
+    writer.close();
     
-    q.clear();
+    //Now you can read via an ordinary SequenceFile.Reader instance.
+
+    SequenceFile.Reader reader = new SequenceFile.Reader(fs, path, conf);
+    IntWritable key = new IntWritable();
+    Text value = new Text();
+    while(reader.next(key, value)){
+      System.out.println(key+"__"+value);
+    }
+    reader.close();
   }
 
 }

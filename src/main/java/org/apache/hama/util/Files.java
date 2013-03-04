@@ -68,12 +68,12 @@ public class Files {
         
     Configuration conf = fs.getConf();
     
-    PriorityQueue<KeyValuePair<KEY,VALUE>> pq = new 
-        PriorityQueue<KeyValuePair<KEY, VALUE>>();
+    PriorityQueue<KVPair<KEY,VALUE>> pq = new 
+        PriorityQueue<KVPair<KEY, VALUE>>();
     
     //Map from KeyValuePair to the split number to which it belongs.
-    HashMap<KeyValuePair<KEY, VALUE>, Integer> keySplitMap = new 
-        HashMap<KeyValuePair<KEY, VALUE>, Integer>();
+    HashMap<KVPair<KEY, VALUE>, Integer> keySplitMap = new 
+        HashMap<KVPair<KEY, VALUE>, Integer>();
     
     FileStatus[] files;
     SequenceFile.Writer writer = null;
@@ -89,7 +89,7 @@ public class Files {
           VALUE val = ReflectionUtils.newInstance(valClazz, new Object[0]);
 
             reader[i].next(key, val);
-            KeyValuePair<KEY,VALUE> kv = new KeyValuePair<KEY,VALUE>(key,val); 
+            KVPair<KEY,VALUE> kv = new KVPair<KEY,VALUE>(key,val); 
             pq.add(kv);
             keySplitMap.put(kv, i);
         }
@@ -99,7 +99,7 @@ public class Files {
           outputPath, keyClazz, valClazz);
       
       while(!pq.isEmpty()){
-        KeyValuePair<KEY, VALUE> smallestKey = pq.poll();
+        KVPair<KEY, VALUE> smallestKey = pq.poll();
         writer.append(smallestKey.getKey(), smallestKey.getValue());
         Integer index = keySplitMap.get(smallestKey);        
         keySplitMap.remove(smallestKey);
@@ -108,7 +108,7 @@ public class Files {
         VALUE val = ReflectionUtils.newInstance(valClazz, new Object[0]);
                 
         if(reader[index].next(key, val)){
-          KeyValuePair<KEY,VALUE> kv = new KeyValuePair<KEY,VALUE>(key,val); 
+          KVPair<KEY,VALUE> kv = new KVPair<KEY,VALUE>(key,val); 
           pq.add(kv);
           keySplitMap.put(kv, index);
         }        

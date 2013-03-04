@@ -49,16 +49,16 @@ import com.google.common.base.Objects;
  *  
  * </code>
  */
-public class KeyValuePair
+public class KVPair
 <KEY extends WritableComparable<? super KEY>,VALUE extends Writable> 
-implements WritableComparable<KeyValuePair<KEY,VALUE>>{
+implements WritableComparable<KVPair<KEY,VALUE>>{
   
   private KEY key;
   private VALUE val;
   
-  public KeyValuePair(){}
+  public KVPair(){}
     
-  public KeyValuePair(KEY key, VALUE val){
+  public KVPair(KEY key, VALUE val){
     this.key = key;
     this.val = val;
   }
@@ -88,7 +88,7 @@ implements WritableComparable<KeyValuePair<KEY,VALUE>>{
     if(getClass() != obj.getClass())
       return false;
     @SuppressWarnings("unchecked")
-    KeyValuePair<KEY, VALUE> that = (KeyValuePair<KEY, VALUE>)obj;
+    KVPair<KEY, VALUE> that = (KVPair<KEY, VALUE>)obj;
     return Objects.equal(this.getKey(), that.getKey())
         && Objects.equal(this.getValue(), that.getValue());
   }
@@ -113,13 +113,11 @@ implements WritableComparable<KeyValuePair<KEY,VALUE>>{
   @SuppressWarnings("unchecked")
   @Override
   public void readFields(DataInput in) throws IOException {
-    System.out.println("Inside readFields");///////////////
     String firstClass = in.readUTF();
-    System.out.println(firstClass);
     try {
       setKey((KEY)ReflectionUtils.newInstance(firstClass));      
+      System.out.println("firstClass = "+firstClass);
       getKey().readFields(in);
-      System.out.println(getKey());
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
     }    
@@ -127,6 +125,7 @@ implements WritableComparable<KeyValuePair<KEY,VALUE>>{
     String secondClass = in.readUTF();
     try {
       setValue((VALUE)ReflectionUtils.newInstance(secondClass));
+      System.out.println("secondClass = "+secondClass);
       getValue().readFields(in);
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
@@ -137,17 +136,17 @@ implements WritableComparable<KeyValuePair<KEY,VALUE>>{
    * @see java.lang.Comparable#compareTo(java.lang.Object)
    */
   @Override
-  public int compareTo(KeyValuePair<KEY, VALUE> that) {
+  public int compareTo(KVPair<KEY, VALUE> that) {
     return getKey().compareTo(that.getKey());
   }
 
   
   public static void main(String[] args){
-    KeyValuePair<Text, IntWritable> kv1 = new 
-        KeyValuePair<Text, IntWritable>(new Text("a"), new IntWritable(1));
+    KVPair<Text, IntWritable> kv1 = new 
+        KVPair<Text, IntWritable>(new Text("a"), new IntWritable(1));
     
-    KeyValuePair<Text, IntWritable> kv2 = new 
-        KeyValuePair<Text, IntWritable>(new Text("a"), new IntWritable(1));
+    KVPair<Text, IntWritable> kv2 = new 
+        KVPair<Text, IntWritable>(new Text("a"), new IntWritable(1));
     
     System.out.println(kv1.hashCode());
     System.out.println(kv2.hashCode());

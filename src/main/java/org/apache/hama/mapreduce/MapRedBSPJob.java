@@ -50,7 +50,7 @@ public class MapRedBSPJob{
     try {
       job = new BSPJob(conf);
       job.setBspClass(MapRedBSP.class);
-      job.setNumBspTask(1);
+      job.setNumBspTask(2);
       
     } catch (IOException e) {
       LOG.error("Cannot instantiate bsp map reduce job. Exiting", e);

@@ -28,8 +28,10 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
@@ -59,10 +61,12 @@ public class SortedSequenceFile{
     private Configuration conf;
     private Path path; //the path to the sorted seq. file that is to be written
     private final int SPILL_SIZE;
-    private TreeMultiset<KeyValuePair<KEY, VALUE>> spill;
+    private TreeMultiset<KVPair<KEY, VALUE>> spill;
     private int SPILL_SEQ_NUMBER = 0;
     private Class<KEY> keyClass;
     private Class<VALUE> valClass;
+
+    private static int counter = -1;
 
     private Writer(FileSystem fs, Configuration conf, Path path, Class<KEY> keyClass,
         Class<VALUE> valClass){
@@ -72,33 +76,35 @@ public class SortedSequenceFile{
       this.keyClass = keyClass;
       this.valClass = valClass;
       this.spill    = TreeMultiset.create(); 
-      SPILL_SIZE    = Integer.parseInt(conf.get(KEY_VALUES_PER_SPILL_CONF,"1000"));      
+      SPILL_SIZE    = Integer.parseInt(conf.get(KEY_VALUES_PER_SPILL_CONF,"100"));
+      counter++;
     }
 
     public void append(KEY key, VALUE val){
       KEY keyCpy = ReflectionUtils.newInstance(keyClass);
+      VALUE valCpy = ReflectionUtils.newInstance(valClass);
       try {
         WritableUtils.cloneInto(keyCpy, key);
-        
+        WritableUtils.cloneInto(valCpy, val);
+
       } catch (IOException e) {
         LOG.error("Error buffering msgs", e);
         e.printStackTrace();
       }
-      spill.add(new KeyValuePair<KEY, VALUE>(keyCpy, val));
+      spill.add(new KVPair<KEY, VALUE>(keyCpy, valCpy));
       if(spill.size() == SPILL_SIZE){
         spillToDisk();
       }
     }
 
     public void spillToDisk(){
-      Path tmpPath = new Path("/tmp/spills/"+Thread.currentThread().getId()
-          +"/spill_"+SPILL_SEQ_NUMBER);
+      Path tmpPath = new Path(getSpillDir() +"/spill_"+SPILL_SEQ_NUMBER);
       SPILL_SEQ_NUMBER++;
       SequenceFile.Writer writer = null;      
       try {
         writer = SequenceFile.createWriter(fs, conf,tmpPath, keyClass,valClass);
-        for(KeyValuePair<KEY, VALUE> kv:spill){
-          writer.append(kv.getKey(), kv.getValue());
+        for(KVPair<KEY, VALUE> kv:spill){
+          writer.append(kv, NullWritable.get());
         }
         spill = TreeMultiset.create();
       } catch (IOException e) {
@@ -124,12 +130,14 @@ public class SortedSequenceFile{
       if(spill.size() > 0){
         spillToDisk();
       }
-      Path inputPath = new Path("/tmp/spills/"+Thread.currentThread().getId());
+      Path inputPath = new Path(getSpillDir());
       Files.<KEY, VALUE>merge(fs, inputPath, path, keyClass, valClass);
       fs.delete(inputPath, true);
     }
 
-
+    private String getSpillDir(){
+      return "/tmp/spills/"+Thread.currentThread().getId()+"_"+counter;
+    }
   }
 
   @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -138,5 +146,5 @@ public class SortedSequenceFile{
   Writer createWriter(FileSystem fs, Configuration conf, Path path,
       Class keyClass, Class valClass){    
     return new Writer(fs, conf, path, keyClass, valClass);
-  }
+  }  
 }

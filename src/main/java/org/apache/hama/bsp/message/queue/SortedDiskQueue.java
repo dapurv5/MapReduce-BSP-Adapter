@@ -22,27 +22,23 @@
  */
 package org.apache.hama.bsp.message.queue;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.apache.commons.lang.math.RandomUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.DataInputBuffer;
-import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
-import org.apache.hadoop.io.WritableUtils;
 import org.apache.hama.bsp.TaskAttemptID;
 import org.apache.hama.bsp.message.queue.MessageQueue;
-import org.apache.hama.util.KeyValuePair;
+import org.apache.hama.util.KVPair;
 import org.apache.hama.util.ReflectionUtils;
 import org.apache.hama.util.SortedSequenceFile;
 
@@ -67,6 +63,8 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   private static final int MAX_RETRIES = 4;
   private static final Log LOG = LogFactory.getLog(SortedDiskQueue.class);
 
+  private static int counter = -1;
+
   private int size = 0;
   private Configuration conf;
   private FileSystem fs;
@@ -78,30 +76,24 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   private Path queuePath;  
   private TaskAttemptID id;
 
-  @SuppressWarnings("rawtypes")
-  private WritableComparable key = null;
-  private Writable val = null;
+  public SortedDiskQueue(){
+    counter++;
+  }
 
 
   /* (non-Javadoc)
    * @see org.apache.hama.bsp.message.MessageQueue#add(java.lang.Object)
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
   public void add(M elem) {
-    if(size == 0){      
-      key = ReflectionUtils.newInstance(((KeyValuePair)elem)
-          .getKey().getClass());
-
-      val = ReflectionUtils.newInstance(((KeyValuePair)elem)
-          .getValue().getClass());
-
+    if(size == 0){
       writer = SortedSequenceFile.<WritableComparable, Writable>createWriter(
-          fs, conf, queuePath, key.getClass(), val.getClass());
+          fs, conf, queuePath, elem.getClass(), NullWritable.class);
+      System.out.println("opening a writer for "+queuePath);////////////////
     }
     size++;
-    writer.append(((KeyValuePair) elem).getKey(),
-        ((KeyValuePair)elem).getValue());
+    writer.append((WritableComparable<?>) elem, NullWritable.get());
   }
 
   /* (non-Javadoc)
@@ -132,11 +124,13 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   public void clear() {
     size = 0;
     try {
+      System.out.println("Clearing i.e. closing the writer at "+queuePath);
       writer.close();
       close();
     } catch (IOException e) {
       LOG.error("Cannot clear disk", e);
-    }    
+    }
+    init(conf, id);
   }
 
   /* (non-Javadoc)
@@ -145,6 +139,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   @Override
   public void close() {    
     try {
+      System.out.println("Closing the SortedDiskQueue and reader.close");
       reader.close();
       fs.delete(queuePath, true);
     } catch (IOException e) {
@@ -166,7 +161,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    * 
    * @return the path to the directory containing the backup
    */
-  private Path getQueueDir(){
+  private Path getQueueDir(){   
     String queueDir = conf.get(DISK_QUEUE_PATH_KEY);    
     if(queueDir == null){
       if(conf.get("hama.tmp.dir") == null){
@@ -177,8 +172,18 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
       }
     }    
     queueDir += "/sorted_disk_queue/" + id.getJobID().toString() 
-        +"/"+id.getTaskID();    
+        +"/"+id.getTaskID()+"_"+counter+".seq";
     return new Path(queueDir);
+  }
+
+  @Override
+  public MessageQueue<M> getReceiverQueue() {
+    return this;
+  }
+
+  @Override
+  public MessageQueue<M> getSenderQueue() {
+    return this;
   }
 
   /* (non-Javadoc)
@@ -196,6 +201,15 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
       LOG.error("Error in initializing the Sorted Disk Queue...", e);
       throw new RuntimeException(e); //Can't recover
     }
+    prepareWrite();
+  }
+
+  /* (non-Javadoc)
+   * @see org.apache.hama.bsp.message.queue.MessageQueue#isMessageSerialized()
+   */
+  @Override
+  public boolean isMessageSerialized() {
+    return false;
   }
 
   /* (non-Javadoc)
@@ -203,7 +217,29 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public Iterator<M> iterator() {
-    return new SortedDiskIterator<M>(this);
+    Iterator<M> iter = new Iterator<M>(){
+
+      @Override
+      public boolean hasNext() {
+        return SortedDiskQueue.this.size() > 0;
+      }
+
+      @Override
+      public M next() {
+        if(SortedDiskQueue.this.size() == 0){
+          SortedDiskQueue.this.close();
+        }
+        return SortedDiskQueue.this.poll();
+      }
+
+      @Override
+      public void remove() {
+        // NO OP
+      }
+
+    };
+    prepareRead();
+    return iter;
   }
 
   /* (non-Javadoc)
@@ -217,13 +253,14 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
     size--;
     for(int tries = 0; tries < MAX_RETRIES; tries++){      
       try {
-//        System.out.println(reader.getMetadata());/////////
-        reader.next(key, val);
-        
-        System.out.println("Polling to q elem="+key);
-        System.out.println("Polling to q elem="+val);
-        
-        return (M) new KeyValuePair(key, val);
+        KVPair kv = new KVPair();
+        System.out.println("called reader.next()");
+        reader.next(kv, NullWritable.get());
+        System.out.println("returned reader.next()");
+
+        //        System.out.println("Polling to q elem="+kv);///////
+
+        return (M) kv;
       } catch (IOException e) {
         LOG.error("Retrying for the " + tries + "th time!", e);
       }     
@@ -236,13 +273,14 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public void prepareRead() {
+    System.err.println("Prepare read() called \n\n");
     try {
       if(writer != null){
         writer.close(); 
-      }      
-      System.out.println("Reader has to read from "+queuePath.toString());
-      System.out.println(queuePath.getParent().getName());
-      reader = new SequenceFile.Reader(fs, queuePath, conf);
+      }
+      if(fs.exists(queuePath)){
+        reader = new SequenceFile.Reader(fs, queuePath, conf);
+      }
     } catch (IOException e) {
       LOG.error("Cannot prepare to read",e);
       throw new RuntimeException(e);
@@ -271,62 +309,5 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   @Override
   public int size() {
     return size;
-  }
-
-  /* (non-Javadoc)
-   * @see org.apache.hama.bsp.message.queue.MessageQueue#isMessageSerialized()
-   */
-  @Override
-  public boolean isMessageSerialized() {
-    return false;
-  }
-
-  @Override
-  public MessageQueue<M> getSenderQueue() {
-    return this;
-  }
-
-  @Override
-  public MessageQueue<M> getReceiverQueue() {
-    return this;
-  }
-}
-
-
-
-class SortedDiskIterator<M extends Writable> implements Iterator<M>{
-
-  SortedDiskQueue<M> q;
-
-  public SortedDiskIterator(SortedDiskQueue<M> q){
-    this.q = q;
-    q.prepareRead();
-  }
-
-  /* (non-Javadoc)
-   * @see java.util.Iterator#hasNext()
-   */
-  @Override
-  public boolean hasNext() {
-    return q.size() > 0;
-  }
-
-  /* (non-Javadoc)
-   * @see java.util.Iterator#next()
-   */
-  @Override
-  public M next() {
-    if(q.size() == 0){
-      q.close();
-    }
-    return q.poll();
-  }
-
-  /* (non-Javadoc)
-   * @see java.util.Iterator#remove()
-   */
-  @Override
-  public void remove() {
-    //NO-OP
   }
 }

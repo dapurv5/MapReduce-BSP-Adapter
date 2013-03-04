@@ -35,19 +35,19 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableUtils;
-import org.apache.hadoop.mapreduce.Partitioner;
+import org.apache.hadoop.mapred.Partitioner;
 import org.apache.hama.bsp.BSP;
 import org.apache.hama.bsp.BSPPeer;
 import org.apache.hama.bsp.message.MessageManager;
 import org.apache.hama.bsp.sync.SyncException;
-import org.apache.hama.util.KeyValuePair;
+import org.apache.hama.util.KVPair;
 import org.apache.hama.util.ReflectionUtils;
 
 /**
  * BSP class to emulate a Map-Reduce process.
  */
 public class MapRedBSP 
-extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KeyValuePair>{
+extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KVPair>{
 
   private final static Log LOG = LogFactory.getLog(MapRedBSP.class);
 
@@ -59,12 +59,12 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Ke
   private Writable              mapOutVal;
 
   private BSPPeer<WritableComparable<?>, Writable,
-  WritableComparable<?>, Writable, KeyValuePair> peer;
+  WritableComparable<?>, Writable, KVPair> peer;
   private Configuration conf;
 
   @SuppressWarnings("unchecked")
   public void setup(
-      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KeyValuePair> peer){
+      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KVPair> peer){
 
     this.conf = peer.getConfiguration();
     this.peer = peer;
@@ -111,8 +111,10 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Ke
    */
   @Override
   public void bsp(
-      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KeyValuePair> peer)
+      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KVPair> peer)
           throws IOException, SyncException, InterruptedException {
+    Thread.sleep(10000);
+    System.err.println("begin bsp() in "+peer.getPeerIndex());
     //SUPERSTEP-0
     //[MAP PHASE]
     Mapper.Context mapperContext = mapper.new Context(this);
@@ -121,15 +123,16 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Ke
       mapper.map(mapInKey, mapInVal, mapperContext);
     }
 
+    System.out.println("Before sync() in "+peer.getPeerIndex()+"Map phase over");/////////////////////////////////////////
     peer.sync();
-    System.err.println("\n\n\n\n\n Begin Reduce Phase");    
+    System.err.println("After sync() in"+peer.getPeerIndex()+"Reduce Phase begin");//////////////////////////
     Reducer.Context reducerContext = reducer.new Context(this);
 
     //SUPERSTEP-1
     //[REDUCE PHASE]    
     List<Writable> valList = new ArrayList<Writable>();
-    KeyValuePair msg = null;
-    KeyValuePair msgNxt = null;
+    KVPair msg = null;
+    KVPair msgNxt = null;
     
     msg = peer.getCurrentMessage();
     System.err.println("msg = "+msg);
@@ -140,10 +143,10 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Ke
 //      WritableComparable<?> mapOutKeyNxt = ReflectionUtils.newInstance(mapOutKey.getClass());
 //      Writable mapOutValNxt = ReflectionUtils.newInstance(mapOutVal.getClass());
 //      msgNxt = new KeyValuePair(mapOutKeyNxt, mapOutValNxt);
-      KeyValuePair readMsg = peer.getCurrentMessage();
+      KVPair readMsg = peer.getCurrentMessage();
       
       flag = (readMsg != null);
-      System.err.println("readMsg = "+readMsg);
+//      System.err.println("readMsg = "+readMsg);////////////
 //      if(flag){
 //        WritableUtils.cloneInto(msgNxt, readMsg);
 //        
@@ -184,7 +187,7 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, Ke
       WritableUtils.cloneInto(keyCpy, key);
       WritableUtils.cloneInto(valCpy, val);
       peer.send(peer.getPeerName(partition),           
-          new KeyValuePair(keyCpy, valCpy));
+          new KVPair(keyCpy, valCpy)); //Reuse KeyValue Pair check here.
 
     } catch (IOException e) {
       LOG.error("Error sending the message", e);
