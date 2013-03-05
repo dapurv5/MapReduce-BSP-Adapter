@@ -9,8 +9,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.Partitioner;
-import org.apache.hadoop.mapred.lib.HashPartitioner;
+import org.apache.hama.bsp.Partitioner;
 import org.apache.hama.bsp.TextInputFormat;
 import org.apache.hama.bsp.TextOutputFormat;
 import org.apache.hama.mapreduce.MapRedBSPJob;
@@ -64,6 +63,16 @@ public class WordCount {
       context.write(key, result);
     }
   }
+  
+  
+  public static class SimpleHashPartitioner implements Partitioner<Text, IntWritable>{
+
+    @Override
+    public int getPartition(Text word, IntWritable freq, int n) {
+      return (word.toString().hashCode() & Integer.MAX_VALUE) % n;
+    }
+    
+  }
 
 
 
@@ -93,7 +102,7 @@ public class WordCount {
 
     job.setMapperClass(WordCountMapper.class);
     job.setReducerClass(WordCountReducer.class);
-    job.setPartitionerClass(HashPartitioner.class);
+    job.setPartitionerClass(SimpleHashPartitioner.class);
     
     try {
       job.waitForCompletion(true);

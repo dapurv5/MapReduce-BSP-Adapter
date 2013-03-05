@@ -80,12 +80,12 @@ public class MapRedBSPJob{
   
   @SuppressWarnings("rawtypes")
   public void setMapOutputKeyClass(Class mapOutKeyClass){
-    conf.set(MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getName());
+    conf.set(MAP_OUT_KEY_CLASS_NAME, mapOutKeyClass.getCanonicalName());
   }
   
   @SuppressWarnings("rawtypes")
   public void setMapOutputValueClass(Class mapOutValClass){
-    conf.set(MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getName());
+    conf.set(MAP_OUT_VAL_CLASS_NAME, mapOutValClass.getCanonicalName());
   }
     
   public void setReduceOutputKeyClass(Class outKeyClass){

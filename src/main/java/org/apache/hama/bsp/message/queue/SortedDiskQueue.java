@@ -76,7 +76,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
 
   private Path queuePath;  
   private TaskAttemptID id;
-  
+
   private Class keyClass;
   private Class valClass;
 
@@ -89,20 +89,6 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   public void add(M elem) {
     WritableComparable<?> key = ((KVPair)elem).getKey();
     Writable val = ((KVPair)elem).getValue();
-    keyClass = key.getClass();
-    valClass = val.getClass();
-    if(size == 0){
-      writer = SortedSequenceFile.<WritableComparable, Writable>createWriter(
-          fs, conf, queuePath, keyClass, valClass);
-      System.out.println("opening a writer for "+queuePath);////////////////
-      try {
-        if(fs.isDirectory(queuePath))
-          System.out.println("is dir");
-      } catch (IOException e) {
-        System.err.println("is dir error");
-        e.printStackTrace();
-      }
-    }
     size++;
     writer.append( key, val);
   }
@@ -135,7 +121,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   public void clear() {
     size = 0;
     try {
-      System.out.println("Clearing i.e. closing the writer at "+queuePath);
+      System.out.println("Clearing i.e. closing the SortedDiskQ at "+queuePath);
       writer.close();
       close();
     } catch (IOException e) {
@@ -150,7 +136,6 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
   @Override
   public void close() {    
     try {
-      System.out.println("Closing the SortedDiskQueue and reader.close");
       reader.close();
       fs.delete(queuePath, true);
     } catch (IOException e) {
@@ -202,17 +187,23 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public void init(Configuration conf, TaskAttemptID id) {
-    this.counter++;
+    counter++;
     this.id   = id;
-    this.conf = conf;    
+    this.conf = conf;
     try {
+      size = 0;
+      keyClass = conf.getClassByName(conf.get(MapRedBSPConstants.MAP_OUT_KEY_CLASS_NAME));
+      valClass = conf.getClassByName(conf.get(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME));
       fs = FileSystem.get(conf);
       queuePath = getQueueDir();
 
-    } catch (IOException e) {
-      LOG.error("Error in initializing the Sorted Disk Queue...", e);
-      throw new RuntimeException(e); //Can't recover
-    }
+      writer = SortedSequenceFile.createWriter(fs, conf, queuePath, keyClass, valClass);
+    } 
+    catch (ClassNotFoundException | IOException e) {
+      LOG.error("unable to init the SortedDiskQueue ", e);
+      e.printStackTrace();
+      throw new RuntimeException(e);
+    }    
     prepareWrite();
   }
 
@@ -259,7 +250,7 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public M poll() {
-    if(size == 0 || reader == null){
+    if(size == 0){
       try {
         reader.close();
       } catch (IOException e) {
@@ -269,7 +260,9 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
       return null;
     }
     
-    
+    if(reader == null){return null;}
+
+
     size--;
     for(int tries = 0; tries < MAX_RETRIES; tries++){      
       try {
@@ -278,9 +271,10 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
         Writable val = ReflectionUtils.newInstance(
             conf.get(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME));
         reader.next(key, val);
-        System.out.println(key);
+        System.out.println("read "+key+", "+val+" from "+queuePath);////////
         KVPair kv = new KVPair(key, val);
         return (M) kv;
+        
       } catch (IOException e) {
         LOG.error("Retrying for the " + tries + "th time!", e);
       } catch (ClassNotFoundException e) {
@@ -296,15 +290,16 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public void prepareRead() {
-    System.err.println("Prepare read() called \n\n");
+    System.out.println("prepareRead() called");
     try {
       if(writer != null){
         writer.close(); 
       }
       if(fs.exists(queuePath)){
         reader = new SequenceFile.Reader(fs, queuePath, conf);
+        System.out.println("prepared reader for "+queuePath);
       }
-      
+
     } catch (IOException e) {
       LOG.error("Cannot prepare to read",e);
       throw new RuntimeException(e);

@@ -132,6 +132,13 @@ implements WritableComparable<KVPair<KEY,VALUE>>{
     }
   }
   
+  
+  
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(key);
+  }
+
   /* (non-Javadoc)
    * @see java.lang.Comparable#compareTo(java.lang.Object)
    */
@@ -143,10 +150,10 @@ implements WritableComparable<KVPair<KEY,VALUE>>{
   
   public static void main(String[] args){
     KVPair<Text, IntWritable> kv1 = new 
-        KVPair<Text, IntWritable>(new Text("a"), new IntWritable(1));
+        KVPair<Text, IntWritable>(new Text("Till"), new IntWritable(1));
     
     KVPair<Text, IntWritable> kv2 = new 
-        KVPair<Text, IntWritable>(new Text("a"), new IntWritable(1));
+        KVPair<Text, IntWritable>(new Text("Till"), new IntWritable(1));
     
     System.out.println(kv1.hashCode());
     System.out.println(kv2.hashCode());
