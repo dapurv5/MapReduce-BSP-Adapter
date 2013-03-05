@@ -149,14 +149,6 @@ public class SortedSequenceFile{
       }
       Path inputPath = new Path(getSpillDir());
       Files.<KEY, VALUE>merge(fs, inputPath, path, keyClass, valClass);
-      System.out.println("____________");
-      System.out.println("placing the sorted file at "+path + " with contents");
-      SequenceFile.Reader reader = new SequenceFile.Reader(fs, path, conf);
-      WritableComparable key = ReflectionUtils.newInstance(keyClass);
-      while(reader.next(key)){
-        System.out.println(key + " @ "+ path);
-      }
-      System.out.println("------------");
       //TODO: Why can't we delete inputPath at this point???
     }
 

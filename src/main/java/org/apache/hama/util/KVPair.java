@@ -144,7 +144,9 @@ implements WritableComparable<KVPair<KEY,VALUE>>{
    */
   @Override
   public int compareTo(KVPair<KEY, VALUE> that) {
-    return getKey().compareTo(that.getKey());
+    int c = getKey().compareTo(that.getKey());
+    System.err.println("comparing "+this+" with "+that + " result = "+c);
+    return c;
   }
 
   

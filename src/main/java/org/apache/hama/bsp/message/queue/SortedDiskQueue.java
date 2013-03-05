@@ -271,7 +271,6 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
         Writable val = ReflectionUtils.newInstance(
             conf.get(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME));
         reader.next(key, val);
-        System.out.println("read "+key+", "+val+" from "+queuePath);////////
         KVPair kv = new KVPair(key, val);
         return (M) kv;
         
@@ -290,14 +289,14 @@ public class SortedDiskQueue<M extends Writable> implements MessageQueue<M>
    */
   @Override
   public void prepareRead() {
-    System.out.println("prepareRead() called");
+    System.err.println("prepareRead() called for "+queuePath);
     try {
       if(writer != null){
         writer.close(); 
       }
       if(fs.exists(queuePath)){
         reader = new SequenceFile.Reader(fs, queuePath, conf);
-        System.out.println("prepared reader for "+queuePath);
+        System.err.println("prepared reader for "+queuePath);
       }
 
     } catch (IOException e) {

@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hama.bsp.message.queue.SortedDiskQueue;
+import org.apache.hama.bsp.message.queue.SortedMessageQueue;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -43,6 +44,7 @@ import org.apache.hama.bsp.message.MessageManager;
 import org.apache.hama.bsp.sync.SyncException;
 import org.apache.hama.util.KVPair;
 import org.apache.hama.util.ReflectionUtils;
+import org.apache.hama.util.Writables;
 
 /**
  * BSP class to emulate a Map-Reduce process.
@@ -115,7 +117,7 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
 
     //Use SortedDiskQueue (TODO: Come up with a faster queue implementation)
     //TODO: Change hama code, there's no need to use a SortedDiskQueue in superstep 0.
-    conf.set(MessageManager.QUEUE_TYPE_CLASS, SortedDiskQueue.class.getCanonicalName());
+    conf.set(MessageManager.QUEUE_TYPE_CLASS, SortedMessageQueue.class.getCanonicalName());
   }
 
 
@@ -145,7 +147,6 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
     Mapper.Context mapperContext = mapper.new Context(this);
 
     while(peer.readNext(mapInKey, mapInVal)){
-      System.out.println("MAP "+peer.getPeerIndex()+" :"+mapInKey+", "+mapInVal);
       mapper.map(mapInKey, mapInVal, mapperContext);
     }
 
@@ -159,9 +160,7 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
     KVPair msgNxt = null;
 
     msg = peer.getCurrentMessage();
-    if(peer.getPeerIndex() == 0)
-      System.out.println("msg = "+msg);
-    else
+    if(peer.getPeerIndex() == 1)
       System.out.println("msg = "+msg);
     
     boolean flag = (msg != null);
@@ -174,10 +173,8 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
       KVPair readMsg = peer.getCurrentMessage();
 
       flag = (readMsg != null);
-      if(peer.getPeerIndex() == 0)
+      if(peer.getPeerIndex() == 1)
         System.out.println("readMsg = "+readMsg);////////////
-      else
-        System.out.println("             readMsg = "+readMsg);
       //      if(flag){
       //        Writables.cloneInto(msgNxt, readMsg);
       //        
@@ -203,11 +200,23 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
     int partition = partitioner.getPartition(key, val, peer.getNumPeers());
 
     try {
+      WritableComparable<?> keyCpy = ReflectionUtils.newInstance(
+          conf.get(MapRedBSPConstants.MAP_OUT_KEY_CLASS_NAME));
+      Writable valCpy = ReflectionUtils.newInstance(
+          conf.get(MapRedBSPConstants.MAP_OUT_VAL_CLASS_NAME));
+
+      Writables.cloneInto(keyCpy, key);
+      Writables.cloneInto(valCpy, val);
+      
       peer.send(peer.getPeerName(partition),           
-          new KVPair(key, val)); //Reuse KeyValue Pair check here.
+          new KVPair(keyCpy, valCpy)); //Reuse KeyValue Pair check here.
 
     } catch (IOException e) {
       LOG.error("Error sending the message", e);
+      e.printStackTrace();
+      
+    } catch (ClassNotFoundException e) {
+      LOG.error("Error initializing copies");
       e.printStackTrace();
     }
   }

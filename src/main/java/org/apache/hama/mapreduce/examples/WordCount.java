@@ -69,7 +69,7 @@ public class WordCount {
 
     @Override
     public int getPartition(Text word, IntWritable freq, int n) {
-      return (word.toString().hashCode() & Integer.MAX_VALUE) % n;
+      return (word.hashCode() & Integer.MAX_VALUE) % n;
     }
     
   }
