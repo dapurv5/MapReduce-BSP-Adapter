@@ -148,7 +148,6 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
   public void bsp(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KVPair> peer)
           throws IOException, SyncException, InterruptedException {
-    peer.sync();
     //SUPERSTEP-1
     //[MAP PHASE]
     Mapper.Context mapperContext = mapper.new Context(this);
@@ -167,30 +166,21 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
         mapOutKey.getClass(), mapOutVal.getClass());
     KVPair msg = null;
     while((msg = peer.getCurrentMessage()) != null){
-      if(peer.getPeerIndex() == 1)
-        System.out.println(msg.getKey()+" ==== "+msg.getValue());
       writer.append(msg.getKey(), msg.getValue());
     }
     writer.close();
-
-    if(peer.getPeerIndex() == 1){
-      System.out.println("\n\n");
-    }
 
     SequenceFile.Reader reader = new SequenceFile.Reader(fs, path, conf);
     List<Writable> valList = new ArrayList<Writable>();
 
     boolean flag = reader.next(mapOutKey, mapOutVal);
-    if(peer.getPeerIndex() == 1)
-      System.out.println("==.>"+mapOutKey);
+    valList.add(mapOutVal);
     assert(flag == true);
 
     while(flag){            
       WritableComparable<?> mapOutKeyNxt = ReflectionUtils.newInstance(mapOutKey.getClass());
       Writable mapOutValNxt = ReflectionUtils.newInstance(mapOutVal.getClass());
       flag = reader.next(mapOutKeyNxt, mapOutValNxt);
-      if(peer.getPeerIndex() == 1)
-        System.out.println("==.>"+mapOutKeyNxt);
       if(flag){
         if(mapOutKeyNxt.equals(mapOutKey)){
           valList.add(mapOutValNxt);
