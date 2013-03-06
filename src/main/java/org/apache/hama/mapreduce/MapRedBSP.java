@@ -35,6 +35,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hama.bsp.BSP;
@@ -44,6 +45,7 @@ import org.apache.hama.bsp.message.MessageManager;
 import org.apache.hama.bsp.sync.SyncException;
 import org.apache.hama.util.KVPair;
 import org.apache.hama.util.ReflectionUtils;
+import org.apache.hama.util.SortedSequenceFile;
 import org.apache.hama.util.Writables;
 
 /**
@@ -60,6 +62,7 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
   private Writable              mapInVal;
   private WritableComparable<?> mapOutKey;
   private Writable              mapOutVal;
+  private Path                  path;
   private Partitioner<WritableComparable<?>, Writable> partitioner;
 
   @SuppressWarnings("rawtypes")
@@ -71,9 +74,10 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
   public void setup(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KVPair> peer){
 
-//    doCleaUp(peer);
     this.conf = peer.getConfiguration();
     this.peer = peer;
+    this.path = new Path("/tmp/spills/"+peer.getTaskId()+"/spill_"+peer.getPeerIndex()+"_"+this);
+    doCleanUp(peer);
     String partitionerClassName = conf.get(PARTITIONER_CLASS_NAME);
     try {
       partitioner = ReflectionUtils.newInstance(partitionerClassName);
@@ -114,35 +118,37 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
       LOG.error("Could not initialize mapper/reducer Exiting...", e);
       System.exit(-1);
     }
-
-    //Use SortedDiskQueue (TODO: Come up with a faster queue implementation)
-    //TODO: Change hama code, there's no need to use a SortedDiskQueue in superstep 0.
-    conf.set(MessageManager.QUEUE_TYPE_CLASS, SortedMessageQueue.class.getCanonicalName());
   }
 
 
   @SuppressWarnings({ "rawtypes", "unused" })
-  private void doCleaUp(BSPPeer<WritableComparable<?>, Writable,
-      WritableComparable<?>, Writable, KVPair> peer) throws IOException{
-    if(peer.getPeerIndex() == 0){
-      FileSystem fs = FileSystem.get(peer.getConfiguration());
-      if(fs.exists(new Path("/tmp/spills"))){
-        fs.delete(new Path("/tmp/spills"), true);
+  private void doCleanUp(BSPPeer<WritableComparable<?>, Writable,
+      WritableComparable<?>, Writable, KVPair> peer){
+    try{
+      if(peer.getPeerIndex() == 0){
+        FileSystem fs = FileSystem.get(peer.getConfiguration());
+        if(fs.exists(new Path("/tmp/spills"))){
+          fs.delete(new Path("/tmp/spills"), true);
+        }
+        if(fs.exists(new Path("/tmp/bsp_message_store"))){
+          fs.delete(new Path("/tmp/bsp_message_store"), true);
+        }
       }
-      if(fs.exists(new Path("/tmp/bsp_message_store"))){
-        fs.delete(new Path("/tmp/bsp_message_store"), true);
-      }
+    }
+    catch(IOException e){
+      LOG.info("Unable to cleanup",e);
     }
   }
   /* (non-Javadoc)
    * @see org.apache.hama.bsp.BSP#bsp(org.apache.hama.bsp.BSPPeer)
    */
-  @SuppressWarnings({ "rawtypes", "unchecked" })
+  @SuppressWarnings({ "rawtypes", "unchecked", "resource" })
   @Override
   public void bsp(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KVPair> peer)
           throws IOException, SyncException, InterruptedException {
-    //SUPERSTEP-0
+    peer.sync();
+    //SUPERSTEP-1
     //[MAP PHASE]
     Mapper.Context mapperContext = mapper.new Context(this);
 
@@ -153,42 +159,47 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
     peer.sync();
     Reducer.Context reducerContext = reducer.new Context(this);
 
-    //SUPERSTEP-1
-    //[REDUCE PHASE]    
-    List<Writable> valList = new ArrayList<Writable>();
+    //SUPERSTEP-2
+    //[REDUCE PHASE]
+    FileSystem fs = FileSystem.get(conf);
+    SortedSequenceFile.Writer writer = SortedSequenceFile.createWriter(fs, conf, path,
+        mapOutKey.getClass(), mapOutVal.getClass());
     KVPair msg = null;
-    KVPair msgNxt = null;
+    while((msg = peer.getCurrentMessage()) != null){
+      writer.append(msg.getKey(), msg.getValue());
+    }
+    writer.close();
 
-    msg = peer.getCurrentMessage();
-    if(peer.getPeerIndex() == 1)
-      System.out.println("msg = "+msg);
-    
-    boolean flag = (msg != null);
+    SequenceFile.Reader reader = new SequenceFile.Reader(fs, path, conf);
+    List<Writable> valList = new ArrayList<Writable>();
+
+    boolean flag = reader.next(mapOutKey, mapOutVal);
+    if(peer.getPeerIndex() == 0)
+      System.out.println("==.>"+mapOutKey);
     assert(flag == true);
 
     while(flag){            
-      //      WritableComparable<?> mapOutKeyNxt = ReflectionUtils.newInstance(mapOutKey.getClass());
-      //      Writable mapOutValNxt = ReflectionUtils.newInstance(mapOutVal.getClass());
-      //      msgNxt = new KeyValuePair(mapOutKeyNxt, mapOutValNxt);
-      KVPair readMsg = peer.getCurrentMessage();
-
-      flag = (readMsg != null);
-      if(peer.getPeerIndex() == 1)
-        System.out.println("readMsg = "+readMsg);////////////
+      WritableComparable<?> mapOutKeyNxt = ReflectionUtils.newInstance(mapOutKey.getClass());
+      Writable mapOutValNxt = ReflectionUtils.newInstance(mapOutVal.getClass());
+      flag = reader.next(mapOutKeyNxt, mapOutValNxt);
+      if(peer.getPeerIndex() == 0)
+        System.out.println("==.>"+mapOutKeyNxt);
       //      if(flag){
-      //        Writables.cloneInto(msgNxt, readMsg);
-      //        
-      //        if(msgNxt.getKey().equals(msg.getKey())){
-      //          valList.add(msgNxt.getValue());
+      //        if(mapOutKeyNxt.equals(mapOutKey)){
+      //          valList.add(mapOutValNxt);
       //        }
       //        else{
       //          reducer.reduce(mapOutKey, valList, reducerContext);
       //          valList = new ArrayList<>();
-      //          msg = msgNxt;
+      //          mapOutKey = mapOutKeyNxt;
+      //          valList.add(mapOutVal);
       //        }
       //      }
     }
-//    peer.sync();
+
+    //    if(valList.size() > 0){
+    //      reducer.reduce(mapOutKey, valList, reducerContext);
+    //    }
   }
 
 
@@ -207,14 +218,14 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
 
       Writables.cloneInto(keyCpy, key);
       Writables.cloneInto(valCpy, val);
-      
+
       peer.send(peer.getPeerName(partition),           
           new KVPair(keyCpy, valCpy)); //Reuse KeyValue Pair check here.
 
     } catch (IOException e) {
       LOG.error("Error sending the message", e);
       e.printStackTrace();
-      
+
     } catch (ClassNotFoundException e) {
       LOG.error("Error initializing copies");
       e.printStackTrace();
@@ -238,7 +249,7 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
   @Override
   public void cleanup(
       BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KVPair> peer)
-      throws IOException {
+          throws IOException {
     super.cleanup(peer);
   }  
 }
