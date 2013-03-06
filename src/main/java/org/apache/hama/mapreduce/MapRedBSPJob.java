@@ -29,6 +29,7 @@ import java.io.IOException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
@@ -121,6 +122,15 @@ public class MapRedBSPJob{
   }
   
   public void setInputPath(Path path){
+    Path partitions = new Path(path.toString()+"/partitions");
+    try {
+      FileSystem fs = FileSystem.get(new Configuration());
+      if(fs.exists(partitions)){
+        fs.delete(partitions, true);
+      }
+    } catch (IOException e) {
+      LOG.error("Failed to clean remnants of previous partitioning", e);
+    }
     job.setInputPath(path);
   }
   

@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.hama.bsp.message.queue.MemoryQueue;
 import org.apache.hama.bsp.message.queue.SortedDiskQueue;
 import org.apache.hama.bsp.message.queue.SortedMessageQueue;
 import org.apache.commons.logging.Log;
@@ -76,7 +77,7 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
 
     this.conf = peer.getConfiguration();
     this.peer = peer;
-    this.path = new Path("/tmp/spills/"+peer.getTaskId()+"/spill_"+peer.getPeerIndex()+"_"+this);
+    this.path = new Path("/tmp/bsp/mapreduce/spills/"+peer.getTaskId()+"/spill_"+"_"+this+peer.getPeerIndex()+".seq");
     doCleanUp(peer);
     String partitionerClassName = conf.get(PARTITIONER_CLASS_NAME);
     try {
@@ -118,20 +119,18 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
       LOG.error("Could not initialize mapper/reducer Exiting...", e);
       System.exit(-1);
     }
+    conf.set(QUEUE_TYPE_CLASS, MemoryQueue.class.getCanonicalName());
   }
 
 
-  @SuppressWarnings({ "rawtypes", "unused" })
+  @SuppressWarnings({ "rawtypes" })
   private void doCleanUp(BSPPeer<WritableComparable<?>, Writable,
       WritableComparable<?>, Writable, KVPair> peer){
     try{
       if(peer.getPeerIndex() == 0){
         FileSystem fs = FileSystem.get(peer.getConfiguration());
-        if(fs.exists(new Path("/tmp/spills"))){
-          fs.delete(new Path("/tmp/spills"), true);
-        }
-        if(fs.exists(new Path("/tmp/bsp_message_store"))){
-          fs.delete(new Path("/tmp/bsp_message_store"), true);
+        if(fs.exists(path)){
+          fs.delete(path, true);
         }
       }
     }
@@ -139,6 +138,8 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
       LOG.info("Unable to cleanup",e);
     }
   }
+
+
   /* (non-Javadoc)
    * @see org.apache.hama.bsp.BSP#bsp(org.apache.hama.bsp.BSPPeer)
    */
@@ -166,15 +167,21 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
         mapOutKey.getClass(), mapOutVal.getClass());
     KVPair msg = null;
     while((msg = peer.getCurrentMessage()) != null){
+      if(peer.getPeerIndex() == 1)
+        System.out.println(msg.getKey()+" ==== "+msg.getValue());
       writer.append(msg.getKey(), msg.getValue());
     }
     writer.close();
+
+    if(peer.getPeerIndex() == 1){
+      System.out.println("\n\n");
+    }
 
     SequenceFile.Reader reader = new SequenceFile.Reader(fs, path, conf);
     List<Writable> valList = new ArrayList<Writable>();
 
     boolean flag = reader.next(mapOutKey, mapOutVal);
-    if(peer.getPeerIndex() == 0)
+    if(peer.getPeerIndex() == 1)
       System.out.println("==.>"+mapOutKey);
     assert(flag == true);
 
@@ -182,24 +189,24 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
       WritableComparable<?> mapOutKeyNxt = ReflectionUtils.newInstance(mapOutKey.getClass());
       Writable mapOutValNxt = ReflectionUtils.newInstance(mapOutVal.getClass());
       flag = reader.next(mapOutKeyNxt, mapOutValNxt);
-      if(peer.getPeerIndex() == 0)
+      if(peer.getPeerIndex() == 1)
         System.out.println("==.>"+mapOutKeyNxt);
-      //      if(flag){
-      //        if(mapOutKeyNxt.equals(mapOutKey)){
-      //          valList.add(mapOutValNxt);
-      //        }
-      //        else{
-      //          reducer.reduce(mapOutKey, valList, reducerContext);
-      //          valList = new ArrayList<>();
-      //          mapOutKey = mapOutKeyNxt;
-      //          valList.add(mapOutVal);
-      //        }
-      //      }
+      if(flag){
+        if(mapOutKeyNxt.equals(mapOutKey)){
+          valList.add(mapOutValNxt);
+        }
+        else{
+          reducer.reduce(mapOutKey, valList, reducerContext);
+          valList = new ArrayList<>();
+          mapOutKey = mapOutKeyNxt;
+          valList.add(mapOutVal);
+        }
+      }
     }
 
-    //    if(valList.size() > 0){
-    //      reducer.reduce(mapOutKey, valList, reducerContext);
-    //    }
+    if(valList.size() > 0){
+      reducer.reduce(mapOutKey, valList, reducerContext);
+    }
   }
 
 

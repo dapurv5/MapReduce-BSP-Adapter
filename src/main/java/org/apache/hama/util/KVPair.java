@@ -44,7 +44,7 @@ import com.google.common.base.Objects;
  *  KeyValuePair<Text, IntWritable> kv2 = new 
  *      KeyValuePair<Text, IntWritable>(new Text("a"), new IntWritable(1));
  *  
- *  System.out.println(kv1.hashCode()); //Both hashcodes will be different.
+ *  System.out.println(kv1.hashCode()); //Both hashcodes will be same since they have same key.
  *  System.out.println(kv2.hashCode());
  *  
  * </code>
@@ -116,7 +116,6 @@ implements WritableComparable<KVPair<KEY,VALUE>>{
     String firstClass = in.readUTF();
     try {
       setKey((KEY)ReflectionUtils.newInstance(firstClass));      
-      System.out.println("firstClass = "+firstClass);
       getKey().readFields(in);
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
@@ -125,7 +124,6 @@ implements WritableComparable<KVPair<KEY,VALUE>>{
     String secondClass = in.readUTF();
     try {
       setValue((VALUE)ReflectionUtils.newInstance(secondClass));
-      System.out.println("secondClass = "+secondClass);
       getValue().readFields(in);
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
@@ -144,22 +142,6 @@ implements WritableComparable<KVPair<KEY,VALUE>>{
    */
   @Override
   public int compareTo(KVPair<KEY, VALUE> that) {
-    int c = getKey().compareTo(that.getKey());
-    System.err.println("comparing "+this+" with "+that + " result = "+c);
-    return c;
-  }
-
-  
-  public static void main(String[] args){
-    KVPair<Text, IntWritable> kv1 = new 
-        KVPair<Text, IntWritable>(new Text("Till"), new IntWritable(1));
-    
-    KVPair<Text, IntWritable> kv2 = new 
-        KVPair<Text, IntWritable>(new Text("Till"), new IntWritable(1));
-    
-    System.out.println(kv1.hashCode());
-    System.out.println(kv2.hashCode());
-    System.out.println(kv1.compareTo(kv2));
-    System.out.println(kv1.equals(kv2));
+    return getKey().compareTo(that.getKey());
   }
 }
