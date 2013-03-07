@@ -125,8 +125,7 @@ public class SortedSequenceFile{
         }
         spill = TreeMultiset.create();
       } catch (IOException e) {
-        LOG.error("Problem in writing. Exiting...", e);
-        System.exit(-1);
+        LOG.error("Problem in spilling.", e);
       }
       finally{
         if(writer != null){
