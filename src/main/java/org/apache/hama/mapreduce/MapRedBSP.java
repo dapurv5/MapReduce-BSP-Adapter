@@ -116,7 +116,6 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
 
     } catch (ClassNotFoundException e) {
       LOG.error("Could not initialize mapper/reducer Exiting...", e);
-      System.exit(-1);
     }
     conf.set(QUEUE_TYPE_CLASS, MemoryQueue.class.getCanonicalName());
   }
@@ -238,14 +237,5 @@ extends BSP<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KV
       LOG.error("Error in writing to fs", e);
       e.printStackTrace();
     }
-  }
-
-
-  @SuppressWarnings("rawtypes")
-  @Override
-  public void cleanup(
-      BSPPeer<WritableComparable<?>, Writable, WritableComparable<?>, Writable, KVPair> peer)
-          throws IOException {
-    super.cleanup(peer);
   }  
 }
