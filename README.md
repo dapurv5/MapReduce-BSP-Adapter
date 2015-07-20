@@ -7,5 +7,3 @@ Simple implementation of Map-Reduce over Apache Hama BSP framework. For key idea
 If you have written a map-reduce job you'll find the api very similar.
 You can find a sample WordCount example here. https://github.com/dapurv5/MapReduce-BSP-Adapter/blob/master/src/main/java/org/apache/hama/mapreduce/examples/WordCount.java
 
-### KNOWN BUGS
-Atmost one word being sent to both the peers. Either caused due to some portions of input being duplicated while partitioning into splits or due to error in loopback messaging in Hama.
