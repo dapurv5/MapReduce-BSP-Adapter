@@ -84,37 +84,40 @@ public class Files {
       
       for (int i = 0; i < files.length; i++) {
         if(files[i].getLen() > 0){
-          reader[i] = new SequenceFile.Reader(fs, files[i].getPath(),conf);          
+          reader[i] = new SequenceFile.Reader(fs, files[i].getPath(),conf);
           KEY key   = ReflectionUtils.newInstance(keyClazz, new Object[0]);
           VALUE val = ReflectionUtils.newInstance(valClazz, new Object[0]);
 
-            reader[i].next(key, val);
-            KVPair<KEY,VALUE> kv = new KVPair<KEY,VALUE>(key,val); 
-            pq.add(kv);
-            keySplitMap.put(kv, i);
+          reader[i].next(key, val);
+          KVPair<KEY,VALUE> kv = new KVPair<KEY,VALUE>(key,val);
+          pq.add(kv);
+          keySplitMap.put(kv, i);
         }
       }
-      
+
       writer = SequenceFile.createWriter(fs, conf, 
           outputPath, keyClazz, valClazz);
       
       while(!pq.isEmpty()){
         KVPair<KEY, VALUE> smallestKey = pq.poll();
         writer.append(smallestKey.getKey(), smallestKey.getValue());
-        Integer index = keySplitMap.get(smallestKey);        
+        Integer index = keySplitMap.get(smallestKey);
         keySplitMap.remove(smallestKey);
         
         KEY key   = ReflectionUtils.newInstance(keyClazz, new Object[0]);
         VALUE val = ReflectionUtils.newInstance(valClazz, new Object[0]);
-                
+
         if(reader[index].next(key, val)){
           KVPair<KEY,VALUE> kv = new KVPair<KEY,VALUE>(key,val); 
           pq.add(kv);
           keySplitMap.put(kv, index);
-        }        
+          //Note that we want two kv pairs to be different even though they have same key & value
+          //This is achieved by not-implementing the equals() method in the KVPair class
+        }
       }
 
-    } catch (IOException e) {
+    } catch (Exception e) {
+      e.printStackTrace();
       LOG.error("Couldn't get status, exiting ...", e);
       System.exit(-1);
     }

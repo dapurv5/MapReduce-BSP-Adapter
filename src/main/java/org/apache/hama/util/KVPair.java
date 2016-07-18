@@ -78,20 +78,6 @@ implements WritableComparable<KVPair<KEY,VALUE>>{
   public void setValue(VALUE val) {
     this.val = val;
   }
-  
-  @Override
-  public boolean equals(Object obj){
-    if(this == obj)
-      return true;
-    if(null == obj)
-      return false;
-    if(getClass() != obj.getClass())
-      return false;
-    @SuppressWarnings("unchecked")
-    KVPair<KEY, VALUE> that = (KVPair<KEY, VALUE>)obj;
-    return Objects.equal(this.getKey(), that.getKey())
-        && Objects.equal(this.getValue(), that.getValue());
-  }
 
   @Override
   public String toString(){
@@ -129,7 +115,6 @@ implements WritableComparable<KVPair<KEY,VALUE>>{
       throw new IOException(e);
     }
   }
-  
   
   
   @Override
