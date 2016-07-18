@@ -27,8 +27,8 @@ public class WordCount {
     private final static Text word = new Text();
     private static LexicalizedParser lp;
     static{
-      URL url = WordCountMapper.class.getResource("/englishPCFG.ser.gz");
-      lp =  new LexicalizedParser(url.toString());
+      //URL url = WordCountMapper.class.getResource("/englishPCFG.ser.gz");
+      //lp =  new LexicalizedParser(url.toString());
     }
 
     @Override
@@ -37,10 +37,10 @@ public class WordCount {
       StringTokenizer itr = new StringTokenizer(val.toString());
       while (itr.hasMoreTokens()) {
         String token = itr.nextToken();
-        if(lp.getLexicon().isKnown(token)){
+        //if(lp.getLexicon().isKnown(token)){
           word.set(token);
-          context.write(word, one);          
-        }
+          context.write(word, one);
+        //}
       }
     }
   }
@@ -79,7 +79,7 @@ public class WordCount {
   public static void main(String[] args) {
     
     args = new String[2];
-    args[0] = "/home/dapurv5/Desktop/hdfs-input/literature";
+    args[0] = "/home/dapurv5/Desktop/hdfs-input/input";
     args[1] = "/home/dapurv5/Desktop/hdfs-output/wordcount";
     
     MapRedBSPJob job = new MapRedBSPJob();
